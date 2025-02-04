@@ -1,19 +1,24 @@
 <script setup lang="ts">
+import { useClipboard } from '@/composables/use-clipboard';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import api from '@/api';
 import { unexpectedError } from '@/utils/unexpected-error';
 
-interface Props {
-	value?: string | null;
-	disabled?: boolean;
-}
-
-const props = withDefaults(defineProps<Props>(), { value: () => null, disabled: false });
+const props = withDefaults(
+	defineProps<{
+		value?: string | null;
+		disabled?: boolean;
+	}>(),
+	{
+		value: null,
+	},
+);
 
 const emit = defineEmits(['input']);
 
 const { t } = useI18n();
+const { isCopySupported, copyToClipboard } = useClipboard();
 
 const placeholder = computed(() => {
 	if (props.disabled && !props.value) return null;
@@ -38,7 +43,7 @@ watch(
 			isNewTokenGenerated.value = false;
 		}
 	},
-	{ immediate: true }
+	{ immediate: true },
 );
 
 async function generateToken() {
@@ -48,8 +53,8 @@ async function generateToken() {
 		const response = await api.get('/utils/random/string');
 		emitValue(response.data.data);
 		isNewTokenGenerated.value = true;
-	} catch (err: any) {
-		unexpectedError(err);
+	} catch (error) {
+		unexpectedError(error);
 	} finally {
 		loading.value = false;
 	}
@@ -58,6 +63,14 @@ async function generateToken() {
 function emitValue(newValue: string | null) {
 	emit('input', newValue);
 	localValue.value = newValue;
+}
+
+function select(event: FocusEvent) {
+	if (localValue.value) (event.target as HTMLInputElement | null)?.select();
+}
+
+function deselect() {
+	window.getSelection()?.removeAllRanges();
 }
 </script>
 
@@ -71,8 +84,18 @@ function emitValue(newValue: string | null) {
 			readonly
 			:class="{ saved: value && !localValue }"
 			@update:model-value="emitValue"
+			@focus="select"
+			@blur="deselect"
 		>
 			<template #append>
+				<v-icon
+					v-if="localValue && isCopySupported"
+					v-tooltip="t('copy')"
+					name="content_copy"
+					clickable
+					class="clipboard-icon"
+					@click="copyToClipboard(value)"
+				/>
 				<v-icon
 					v-if="!disabled"
 					v-tooltip="value ? t('interfaces.system-token.regenerate') : t('interfaces.system-token.generate')"
@@ -93,7 +116,7 @@ function emitValue(newValue: string | null) {
 			</template>
 		</v-input>
 
-		<v-notice v-if="isNewTokenGenerated && value" type="info">
+		<v-notice v-if="isNewTokenGenerated && value">
 			{{ t('interfaces.system-token.generate_success_copy') }}
 		</v-notice>
 	</div>
@@ -101,7 +124,7 @@ function emitValue(newValue: string | null) {
 
 <style lang="scss" scoped>
 .v-input {
-	--v-input-font-family: var(--theme--font-family-monospace);
+	--v-input-font-family: var(--theme--fonts--monospace--font-family);
 }
 
 .saved {
@@ -110,6 +133,10 @@ function emitValue(newValue: string | null) {
 
 .v-notice {
 	margin-top: 12px;
+}
+
+.clipboard-icon {
+	margin-right: 4px;
 }
 
 .regenerate-icon {

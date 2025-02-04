@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Color from 'color';
 import { isHex } from '@/utils/is-hex';
+import { isCssVar as isCssVarUtil } from '@/utils/is-css-var';
 import { cssVar } from '@directus/utils/browser';
 import { ComponentPublicInstance, computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -19,7 +20,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
 	disabled: false,
-	value: () => null,
+	value: null,
 	placeholder: undefined,
 	opacity: false,
 	presets: () => [
@@ -64,9 +65,14 @@ const props = withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits(['input']);
 
+const isCssVar = computed(() => {
+	if (!props.value) return false;
+	return isCssVarUtil(props.value);
+});
+
 const valueWithoutVariables = computed(() => {
 	if (!props.value) return null;
-	return props.value?.startsWith('var(--') ? cssVar(props.value.substring(4, props.value.length - 1)) : props.value;
+	return isCssVar.value ? cssVar(props.value.substring(4, props.value.length - 1)) : props.value;
 });
 
 const htmlColorInput = ref<ComponentPublicInstance | null>(null);
@@ -80,19 +86,29 @@ const isValidColor = computed<boolean>(() => rgb.value !== null && valueWithoutV
 const lowContrast = computed(() => {
 	if (color.value === null) return true;
 
-	const pageColorString = cssVar('--theme--background');
-	const pageColor = Color(pageColorString);
+	const pageColorString = cssVar('--theme--form--field--input--background');
 
-	return color.value.contrast(pageColor) < 1.1;
+	try {
+		const pageColor = Color(pageColorString);
+		return color.value.contrast(pageColor) < 1.1;
+	} catch {
+		return true;
+	}
 });
 
 const getPresetContrast = (hex: string) => {
 	if (hex.startsWith('--')) hex = cssVar(hex);
 	const color = Color(hex);
-	return color.contrast(Color(cssVar('--card-face-color'))) < 1.1;
+	return color.contrast(Color(cssVar('--theme--popover--menu--background'))) < 1.1;
 };
 
-const { hsl, rgb, hex, alpha, color } = useColor();
+const { hsl, rgb, hex, alpha, color, input } = useColor();
+
+const showSwatch = computed(() => {
+	if (color.value) return true;
+	if (isCssVar.value) return true;
+	return false;
+});
 
 function setValue(type: 'rgb' | 'hsl' | 'alpha', i: number, val: number) {
 	if (type === 'rgb') {
@@ -117,7 +133,7 @@ function unsetColor() {
 }
 
 function activateColorPicker() {
-	(htmlColorInput.value?.$el as HTMLElement).getElementsByTagName('input')[0].click();
+	htmlColorInput.value?.$el.getElementsByTagName('input')[0]?.click();
 }
 
 function useColor() {
@@ -139,9 +155,13 @@ function useColor() {
 	watch(
 		() => props.value,
 		() => {
-			color.value = valueWithoutVariables.value !== null ? Color(valueWithoutVariables.value) : null;
+			try {
+				color.value = valueWithoutVariables.value !== null ? Color(valueWithoutVariables.value) : null;
+			} catch {
+				color.value = null;
+			}
 		},
-		{ immediate: true }
+		{ immediate: true },
 	);
 
 	const rgb = computed<number[]>({
@@ -198,7 +218,39 @@ function useColor() {
 		},
 	});
 
-	return { rgb, hsl, hex, alpha, color };
+	const input = computed<string | null>({
+		get() {
+			return props.value;
+		},
+		set(newInput) {
+			if (newInput === null || newInput === '') {
+				unsetColor();
+			} else if (isCssVarUtil(newInput)) {
+				emit('input', newInput);
+
+				try {
+					color.value = Color(cssVar(newInput.substring(4, newInput.length - 1)));
+				} catch {
+					// Color or cssVar could not resolve the color to a color in JS, however, the CSS Var may still be a valid color.
+					// So we keep the input value as is and set the internal color to null.
+					// This way the user can still edit the input and we can still show the color in the swatch.
+					// The color editor (rgb/hsl) will show the color as black (0,0,0) in this case.
+					color.value = null;
+				}
+			} else {
+				try {
+					// If the input is a valid color, we set the color and emit the input as a hex value which is consistent with the dropdown selector and HTML color picker
+					const newColor = Color(newInput);
+					setColor(newColor);
+				} catch {
+					// The input is not a valid color, but we still want to let the user edit/type in the input so we emit the input
+					emit('input', newInput);
+				}
+			}
+		},
+	});
+
+	return { rgb, hsl, hex, alpha, color, input };
 
 	function setColor(newColor: Color | null) {
 		color.value = newColor;
@@ -225,7 +277,7 @@ function useColor() {
 	<v-menu attached :disabled="disabled" :close-on-content-click="false">
 		<template #activator="{ activate }">
 			<v-input
-				v-model="hex"
+				v-model="input"
 				:disabled="disabled"
 				:placeholder="placeholder || t('interfaces.select-color.placeholder')"
 				:pattern="opacity ? /#([a-f\d]{2}){4}/i : /#([a-f\d]{2}){3}/i"
@@ -245,16 +297,25 @@ function useColor() {
 						class="swatch"
 						icon
 						:style="{
-							'--v-button-background-color': isValidColor ? hex : 'transparent',
-							border: lowContrast === false ? 'none' : 'var(--border-width) solid var(--border-normal)',
+							'--swatch-color': showSwatch ? value : 'transparent',
+							...(lowContrast === false ? { '--theme--border-width': '0px' } : {}),
+							border:
+								lowContrast === false
+									? 'none'
+									: 'var(--theme--border-width) solid var(--theme--form--field--input--border-color)',
 						}"
 						@click="activateColorPicker"
 					>
 						<v-icon v-if="!isValidColor" name="colorize" />
+						<v-icon v-else-if="!showSwatch" name="question_mark" />
 					</v-button>
 				</template>
 				<template #append>
-					<v-icon :name="isValidColor ? 'close' : 'palette'" :clickable="isValidColor" @click="unsetColor" />
+					<div class="item-actions">
+						<v-remove v-if="isValidColor" deselect @action="unsetColor" />
+
+						<v-icon v-else name="palette" />
+					</div>
 				</template>
 			</v-input>
 		</template>
@@ -267,8 +328,8 @@ function useColor() {
 						? 'repeat(4, 1fr)'
 						: 'repeat(6, 1fr)'
 					: width.startsWith('half')
-					? 'repeat(3, 1fr)'
-					: 'repeat(5, 1fr)',
+					  ? 'repeat(3, 1fr)'
+					  : 'repeat(5, 1fr)',
 			}"
 			:class="{ stacked: width.startsWith('half') }"
 		>
@@ -280,8 +341,8 @@ function useColor() {
 							? '1 / span 4'
 							: '1 / span 2'
 						: width.startsWith('half')
-						? '1 / span 3'
-						: '1 / span 2',
+						  ? '1 / span 3'
+						  : '1 / span 2',
 				}"
 			>
 				<v-select v-model="colorType" :items="colorTypes" />
@@ -380,18 +441,26 @@ function useColor() {
 </template>
 
 <style scoped lang="scss">
+@use '@/styles/mixins';
+
+.item-actions {
+	@include mixins.list-interface-item-actions;
+}
+
 .swatch {
 	--v-button-padding: 6px;
 	--v-button-background-color: transparent;
+	background-color: var(--swatch-color, transparent);
 	--v-button-background-color-hover: var(--v-button-background-color);
-
+	--v-button-height: calc(var(--theme--form--field--input--height) - 20px);
+	--v-button-width: calc(var(--theme--form--field--input--height) - 20px);
 	position: relative;
 	box-sizing: border-box;
 	margin-left: -8px;
-	width: calc(var(--input-height) - 20px);
-	max-height: calc(var(--input-height) - 20px);
+	width: calc(var(--theme--form--field--input--height) - 20px);
+	height: calc(var(--theme--form--field--input--height) - 20px);
+	border-radius: calc(var(--theme--border-radius) + 2px);
 	overflow: hidden;
-	border-radius: calc(var(--border-radius) + 2px);
 	cursor: pointer;
 }
 
@@ -413,7 +482,7 @@ function useColor() {
 	&.low-contrast {
 		--v-button-height: 18px;
 		--v-button-width: 18px;
-		border: 1px solid var(--border-normal-alt);
+		border: 1px solid var(--theme--form--field--input--border-color-hover);
 	}
 }
 
@@ -441,7 +510,7 @@ function useColor() {
 }
 
 .color-data-inputs .color-data-input {
-	--border-radius: 0px;
+	--v-input-border-radius: 0px;
 }
 
 .color-data-inputs .color-data-input :deep(.input:focus-within),
@@ -453,40 +522,40 @@ function useColor() {
 }
 
 .color-data-inputs .color-data-input:not(.color-type) {
-	--input-padding: 12px 8px;
+	--theme--form--field--input--padding: 12px 8px;
 }
 
 .color-data-inputs .color-data-input:not(:first-child) :deep(.input) {
-	margin-left: calc(-1 * var(--border-width));
+	margin-left: calc(-1 * var(--theme--border-width));
 }
 
 .color-data-inputs .color-data-input:first-child {
-	--border-radius: 4px 0px 0px 4px;
+	--v-input-border-radius: var(--theme--border-radius) 0px 0px var(--theme--border-radius);
 }
 
 .color-data-inputs .color-data-input:last-child {
-	--border-radius: 0px 4px 4px 0px;
+	--v-input-border-radius: 0px var(--theme--border-radius) var(--theme--border-radius) 0px;
 }
 
 .color-data-inputs.stacked .color-data-input:not(:first-child) :deep(.input) {
-	margin-top: calc(-2 * var(--border-width));
+	margin-top: calc(-2 * var(--theme--border-width));
 	margin-left: initial;
 }
 
 .color-data-inputs.stacked .color-data-input:not(:first-child):not(:nth-child(2)) :deep(.input) {
-	margin-left: calc(-1 * var(--border-width));
+	margin-left: calc(-1 * var(--theme--border-width));
 }
 
 .color-data-inputs.stacked .color-data-input:first-child {
-	--border-radius: 4px 4px 0px 0px;
+	--v-input-border-radius: var(--theme--border-radius) var(--theme--border-radius) 0px 0px;
 }
 
 .color-data-inputs.stacked .color-data-input:nth-child(2) {
-	--border-radius: 0px 0px 0px 4px;
+	--v-input-border-radius: 0px 0px 0px var(--theme--border-radius);
 }
 
 .color-data-inputs.stacked .color-data-input:last-child {
-	--border-radius: 0px 0px 4px 0px;
+	--v-input-border-radius: 0px 0px var(--theme--border-radius) 0px;
 }
 
 .color-data-alphas {

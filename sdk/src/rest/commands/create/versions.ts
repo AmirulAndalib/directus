@@ -3,9 +3,9 @@ import type { ApplyQueryFields, Query } from '../../../types/index.js';
 import type { RestCommand } from '../../types.js';
 
 export type CreateContentVersionOutput<
-	Schema extends object,
+	Schema,
 	TQuery extends Query<Schema, Item>,
-	Item extends object = DirectusVersion<Schema>
+	Item extends object = DirectusVersion<Schema>,
 > = ApplyQueryFields<Schema, Item, TQuery['fields']>;
 
 /**
@@ -17,9 +17,9 @@ export type CreateContentVersionOutput<
  * @returns Returns the Content Version object for the created Content Versions.
  */
 export const createContentVersions =
-	<Schema extends object, const TQuery extends Query<Schema, DirectusVersion<Schema>>>(
+	<Schema, const TQuery extends Query<Schema, DirectusVersion<Schema>>>(
 		items: Partial<DirectusVersion<Schema>>[],
-		query?: TQuery
+		query?: TQuery,
 	): RestCommand<CreateContentVersionOutput<Schema, TQuery>[], Schema> =>
 	() => ({
 		path: `/versions`,
@@ -37,9 +37,9 @@ export const createContentVersions =
  * @returns Returns the Content Version object for the created Content Version.
  */
 export const createContentVersion =
-	<Schema extends object, const TQuery extends Query<Schema, DirectusVersion<Schema>>>(
+	<Schema, const TQuery extends Query<Schema, DirectusVersion<Schema>>>(
 		item: Partial<DirectusVersion<Schema>>,
-		query?: TQuery
+		query?: TQuery,
 	): RestCommand<CreateContentVersionOutput<Schema, TQuery>, Schema> =>
 	() => ({
 		path: `/versions`,

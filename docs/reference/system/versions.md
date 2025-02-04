@@ -29,8 +29,17 @@ The item the Content Version is created on.
 `date_created` **Date**\
 When the Content Version was created.
 
+`date_updated` **Date**\
+When the Content Version was last updated.
+
 `user_created` **many-to-one**\
 User that created the Content Version. Many-to-one to [users](/reference/system/users).
+
+`user_updated` **many-to-one**\
+User that last updated the Content Version. Many-to-one to [users](/reference/system/users).
+
+`delta` **json**\
+The current changes compared to the main version of the item.
 
 ```json
 {
@@ -40,8 +49,13 @@ User that created the Content Version. Many-to-one to [users](/reference/system/
 	"collection": "my_collection",
 	"item": "1",
 	"hash": "aaafc0db8fb60e82e634903523e1fa2144c58520",
-	"date_created": "2023-08-23T10:38:20.686Z",
-	"user_created": "a2dbc923-7c75-4d26-83f4-4674bfa7be81"
+	"date_created": "2024-07-22T10:33:02.542Z",
+	"date_updated": "2024-07-22T10:33:14.324Z",
+	"user_created": "a2dbc923-7c75-4d26-83f4-4674bfa7be81",
+	"user_updated": "a2dbc923-7c75-4d26-83f4-4674bfa7be81",
+	"delta": {
+		"my_field": "Updated Value"
+	}
 }
 ```
 
@@ -51,7 +65,7 @@ List all Content Versions that exist in Directus.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `GET /versions`
@@ -98,7 +112,7 @@ are available, data will be an empty array.
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `GET /versions`
@@ -144,7 +158,7 @@ List an existing Content Version by primary key.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `GET /versions/:id`
@@ -184,7 +198,7 @@ Returns the requested [Content Version object](#the-content-version-object).
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `GET /versions/21a7ed5f-eb19-42ae-8ee2-61f25b8c4eb5`
@@ -228,10 +242,10 @@ Create a new Content Version for an item.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
-`POST /version`
+`POST /versions`
 
 Provide a [Content Version object](#the-content-version-object) as the body of your request.
 
@@ -274,7 +288,7 @@ Returns the [Content Version object](#the-content-version-object) for the create
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `POST /versions`
@@ -330,7 +344,7 @@ Create multiple new Content Versions.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `POST /versions`
@@ -376,7 +390,7 @@ Returns an array of [Content Version objects](#the-content-version-object) for t
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `POST /versions`
@@ -453,7 +467,7 @@ Update an existing Content Version.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `PATCH /versions/:id`
@@ -499,7 +513,7 @@ Returns the [Content Version object](#the-content-version-object) for the update
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `PATCH /versions/21a7ed5f-eb19-42ae-8ee2-61f25b8c4eb5`
@@ -549,7 +563,7 @@ Update multiple existing Content Versions.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `PATCH /versions`
@@ -604,7 +618,7 @@ Returns the [Content Version objects](#the-content-version-object) for the updat
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `PATCH /versions`
@@ -660,7 +674,7 @@ Delete an existing Content Version.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `DELETE /versions/:id`
@@ -696,7 +710,7 @@ Empty body.
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `DELETE /versions/21a7ed5f-eb19-42ae-8ee2-61f25b8c4eb5`
@@ -734,7 +748,7 @@ Delete multiple existing Content Versions.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `DELETE /versions`
@@ -776,7 +790,7 @@ Empty body.
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `DELETE /versions`
@@ -820,7 +834,7 @@ Save item changes to an existing Content Version.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `POST /versions/:id/save`
@@ -854,7 +868,7 @@ Returns the [item object](/reference/items#the-item-object) with the new state a
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `POST /versions/21a7ed5f-eb19-42ae-8ee2-61f25b8c4eb5/save`
@@ -894,7 +908,7 @@ Compare an existing Content Version with the main version of the item.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `GET /versions/:id/compare`
@@ -941,7 +955,7 @@ Content Version):
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `GET /versions/21a7ed5f-eb19-42ae-8ee2-61f25b8c4eb5/compare`
@@ -973,7 +987,7 @@ Promote an existing Content Version to become the new main version of the item.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `POST /versions/:id/promote`
@@ -1015,7 +1029,7 @@ The primary key of the promoted item.
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `POST /versions/21a7ed5f-eb19-42ae-8ee2-61f25b8c4eb5/promote`

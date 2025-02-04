@@ -2,7 +2,6 @@
 import { useCollectionsStore } from '@/stores/collections';
 import { useFieldsStore } from '@/stores/fields';
 import { useRelationsStore } from '@/stores/relations';
-import { orderBy } from 'lodash';
 import { storeToRefs } from 'pinia';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -34,14 +33,14 @@ const currentPrimaryKey = computed(() => fieldsStore.getPrimaryKeyFieldForCollec
 
 const availableCollections = computed(() => {
 	return [
-		...orderBy(collectionsStore.databaseCollections, ['collection'], ['asc']),
+		...collectionsStore.databaseCollections.filter((collection) => collection.meta),
 		{
 			divider: true,
 		},
 		{
 			collection: t('system'),
 			selectable: false,
-			children: orderBy(collectionsStore.crudSafeSystemCollections, ['collection'], ['asc']),
+			children: collectionsStore.crudSafeSystemCollections,
 		},
 	];
 });
@@ -82,14 +81,19 @@ const unsortableJunctionFields = computed(() => {
 					:items="availableCollections"
 					item-value="collection"
 					item-text="collection"
-					item-label-font-family="var(--theme--font-family-monospace)"
+					item-label-font-family="var(--theme--fonts--monospace--font-family)"
 					item-disabled="meta.singleton"
 					multiple
 					:multiple-preview-threshold="0"
 				/>
 			</div>
 
-			<v-input disabled :model-value="currentPrimaryKey" />
+			<div class="primary-key">
+				<div class="field-wrapper">
+					<v-input disabled :model-value="currentPrimaryKey" />
+					<v-icon class="arrow" name="arrow_forward" />
+				</div>
+			</div>
 
 			<related-field-select
 				v-model="junctionFieldCurrent"
@@ -101,24 +105,29 @@ const unsortableJunctionFields = computed(() => {
 
 			<div class="spacer" />
 
-			<related-field-select
-				v-model="oneCollectionField"
-				:collection="junctionCollection"
-				:placeholder="t('collection_key') + '...'"
-				:disabled="autoGenerateJunctionRelation || isExisting"
-			/>
+			<div class="junction-field-related">
+				<div class="field-wrapper">
+					<related-field-select
+						v-model="oneCollectionField"
+						:collection="junctionCollection"
+						:placeholder="t('collection_key') + '...'"
+						:disabled="autoGenerateJunctionRelation || isExisting"
+					/>
+					<v-icon class="arrow" name="arrow_back" />
+				</div>
+			</div>
 
 			<div class="spacer" />
 
-			<related-field-select v-model="junctionFieldRelated" :disabled="autoGenerateJunctionRelation || isExisting" />
+			<div class="field-wrapper">
+				<related-field-select v-model="junctionFieldRelated" :disabled="autoGenerateJunctionRelation || isExisting" />
+				<v-icon class="arrow" name="arrow_back" />
+			</div>
 
 			<v-input disabled :model-value="t('primary_key')" />
 
 			<div class="spacer" />
 			<v-checkbox v-if="!isExisting" v-model="autoGenerateJunctionRelation" block :label="t('auto_fill')" />
-			<v-icon class="arrow" name="arrow_forward" />
-			<v-icon class="arrow" name="arrow_back" />
-			<v-icon class="arrow" name="arrow_back" />
 		</div>
 
 		<div class="sort-field">
@@ -214,11 +223,11 @@ const unsortableJunctionFields = computed(() => {
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/mixins/form-grid';
+@use '@/styles/mixins';
 
 .grid {
-	--v-select-font-family: var(--theme--font-family-monospace);
-	--v-input-font-family: var(--theme--font-family-monospace);
+	--v-select-font-family: var(--theme--fonts--monospace--font-family);
+	--v-input-font-family: var(--theme--fonts--monospace--font-family);
 
 	position: relative;
 	display: grid;
@@ -226,27 +235,30 @@ const unsortableJunctionFields = computed(() => {
 	gap: 12px 28px;
 	margin-top: 48px;
 
-	.v-icon.arrow {
-		--v-icon-color: var(--theme--primary);
+	.field-wrapper {
+		display: flex;
+		flex: 1;
+		position: relative;
 
-		position: absolute;
-		transform: translateX(-50%);
-		pointer-events: none;
+		.v-icon.arrow {
+			--v-icon-color: var(--theme--primary);
+			position: absolute;
+			pointer-events: none;
 
-		&:first-of-type {
-			top: 117px;
-			left: 32.5%;
+			top: 50%;
+			transform: translateY(-50%);
+			right: -26px; // moves it to the center of the column-gap ( icon-width + (gap - icon-width) / 2 )
 		}
+	}
 
-		&:nth-of-type(2) {
-			top: 190px;
-			left: 67.4%;
-		}
+	.junction-field-related {
+		display: flex;
+		align-items: flex-end;
+	}
 
-		&:last-of-type {
-			top: 261px;
-			left: 67.4%;
-		}
+	.primary-key {
+		display: flex;
+		align-items: flex-start;
 	}
 }
 
@@ -259,7 +271,7 @@ const unsortableJunctionFields = computed(() => {
 }
 
 .v-list {
-	--v-list-item-content-font-family: var(--theme--font-family-monospace);
+	--v-list-item-content-font-family: var(--theme--fonts--monospace--font-family);
 }
 
 .v-notice {
@@ -275,20 +287,20 @@ const unsortableJunctionFields = computed(() => {
 	}
 
 	.field-name {
-		font-family: var(--theme--font-family-monospace);
+		font-family: var(--theme--fonts--monospace--font-family);
 	}
 }
 
 .related-collections-preview {
 	grid-row: 2 / span 2;
 	grid-column: 3;
-	padding: var(--input-padding);
+	padding: var(--theme--form--field--input--padding);
 	overflow: auto;
 	color: var(--theme--foreground-subdued);
-	font-family: var(--theme--font-family-monospace);
-	background-color: var(--background-subdued);
-	border: var(--border-width) solid var(--border-normal);
-	border-radius: var(--border-radius);
+	font-family: var(--theme--fonts--monospace--font-family);
+	background-color: var(--theme--background-subdued);
+	border: var(--theme--border-width) solid var(--theme--form--field--input--border-color);
+	border-radius: var(--theme--border-radius);
 }
 
 .one-collection-field {
@@ -296,7 +308,7 @@ const unsortableJunctionFields = computed(() => {
 }
 
 .sort-field {
-	--v-input-font-family: var(--theme--font-family-monospace);
+	--v-input-font-family: var(--theme--fonts--monospace--font-family);
 
 	.v-divider {
 		margin-top: 48px;
@@ -305,10 +317,10 @@ const unsortableJunctionFields = computed(() => {
 }
 
 .relational-triggers {
-	--form-horizontal-gap: 12px;
-	--form-vertical-gap: 24px;
+	--theme--form--column-gap: 12px;
+	--theme--form--row-gap: 24px;
 
-	@include form-grid;
+	@include mixins.form-grid;
 
 	.v-divider {
 		margin-top: 48px;

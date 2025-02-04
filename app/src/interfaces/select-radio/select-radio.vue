@@ -2,6 +2,7 @@
 import { useCustomSelection } from '@directus/composables';
 import { computed, toRefs } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { getMinimalGridClass } from '@/utils/get-minimal-grid-class';
 
 type Option = {
 	text: string;
@@ -25,7 +26,7 @@ const props = withDefaults(
 		iconOn: 'radio_button_checked',
 		iconOff: 'radio_button_unchecked',
 		color: 'var(--theme--primary)',
-	}
+	},
 );
 
 const emit = defineEmits(['input']);
@@ -34,28 +35,11 @@ const { t } = useI18n();
 
 const { choices, value } = toRefs(props);
 
-const gridClass = computed(() => {
-	if (choices?.value === undefined) return null;
+const items = computed(() => choices.value || []);
 
-	const widestOptionLength = choices.value.reduce((acc, val) => {
-		if (val.text.length > acc.length) acc = val.text;
-		return acc;
-	}, '').length;
+const gridClass = computed(() => getMinimalGridClass(items.value, props.width));
 
-	if (props.width?.startsWith('half')) {
-		if (widestOptionLength <= 10) return 'grid-2';
-		return 'grid-1';
-	}
-
-	if (widestOptionLength <= 10) return 'grid-4';
-	if (widestOptionLength > 10 && widestOptionLength <= 15) return 'grid-3';
-	if (widestOptionLength > 15 && widestOptionLength <= 25) return 'grid-2';
-	return 'grid-1';
-});
-
-const { otherValue, usesOtherValue } = useCustomSelection(value as any, choices as any, (value) =>
-	emit('input', value)
-);
+const { otherValue, usesOtherValue } = useCustomSelection(value as any, items as any, (value) => emit('input', value));
 
 const customIcon = computed(() => {
 	if (!otherValue.value) return 'add';
@@ -65,7 +49,7 @@ const customIcon = computed(() => {
 </script>
 
 <template>
-	<v-notice v-if="!choices" type="warning">
+	<v-notice v-if="!items" type="warning">
 		{{ t('choices_option_configured_incorrectly') }}
 	</v-notice>
 	<div
@@ -77,7 +61,7 @@ const customIcon = computed(() => {
 		}"
 	>
 		<v-radio
-			v-for="item in choices"
+			v-for="item in items"
 			:key="item.value"
 			block
 			:value="item.value"
@@ -88,6 +72,9 @@ const customIcon = computed(() => {
 			:model-value="value"
 			@update:model-value="$emit('input', $event)"
 		/>
+		<v-notice v-if="items.length === 0 && !allowOther" type="info">
+			{{ t('no_options_available') }}
+		</v-notice>
 		<div
 			v-if="allowOther"
 			class="custom"
@@ -136,10 +123,10 @@ const customIcon = computed(() => {
 	display: flex;
 	align-items: center;
 	width: 100%;
-	height: var(--input-height);
+	height: var(--theme--form--field--input--height);
 	padding: 10px;
-	border: 2px dashed var(--border-normal);
-	border-radius: var(--border-radius);
+	border: var(--theme--border-width) dashed var(--theme--form--field--input--border-color);
+	border-radius: var(--theme--border-radius);
 
 	input {
 		display: block;
@@ -158,16 +145,16 @@ const customIcon = computed(() => {
 	}
 
 	&.has-value {
-		background-color: var(--background-subdued);
-		border: 2px solid var(--background-subdued);
+		background-color: var(--theme--form--field--input--background-subdued);
+		border: var(--theme--border-width) solid var(--theme--form--field--input--background-subdued);
 	}
 
 	&.active {
-		--v-icon-color: var(--v-radio-color);
+		--v-icon-color: var(--v-radio-color, var(--theme--primary));
 
 		position: relative;
 		background-color: transparent;
-		border-color: var(--v-radio-color);
+		border-color: var(--v-radio-color, var(--theme--primary));
 
 		&::before {
 			position: absolute;
@@ -175,7 +162,7 @@ const customIcon = computed(() => {
 			left: 0;
 			width: 100%;
 			height: 100%;
-			background-color: var(--v-radio-color);
+			background-color: var(--v-radio-color, var(--theme--primary));
 			opacity: 0.1;
 			content: '';
 			pointer-events: none;
@@ -183,7 +170,7 @@ const customIcon = computed(() => {
 	}
 
 	&.disabled {
-		background-color: var(--background-subdued);
+		background-color: var(--theme--form--field--input--background-subdued);
 		border-color: transparent;
 		cursor: not-allowed;
 

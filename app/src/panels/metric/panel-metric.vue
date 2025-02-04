@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Filter } from '@directus/types';
-import { cssVar } from '@directus/utils/browser';
 import { isNil } from 'lodash';
 import { computed, ref, onMounted, onUpdated, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useAutoFontFit } from '@/composables/use-auto-fit-text';
 import { formatNumber } from '@/utils/format-number';
 import type { Style, Notation, Unit } from '@/utils/format-number';
+import { CSSProperties } from 'vue';
 
 interface Props {
 	showHeader?: boolean;
@@ -23,8 +23,8 @@ interface Props {
 	suffix?: string | null;
 	minimumFractionDigits?: number;
 	maximumFractionDigits?: number;
-	conditionalFormatting?: Record<string, any>[];
-	textAlign?: string | undefined;
+	conditionalFormatting?: Record<string, any>[] | null;
+	textAlign?: CSSProperties['text-align'];
 	fontSize?: string;
 	fontWeight?: number | undefined;
 	fontStyle?: string | undefined;
@@ -165,7 +165,7 @@ const color = computed(() => {
 		}
 	}
 
-	return matchingFormat ? matchingFormat.color || cssVar('--primary') : null;
+	return matchingFormat?.color || 'var(--theme--primary)';
 
 	function matchesOperator(format: Record<string, any>) {
 		if (typeof metric.value === 'string') {
@@ -234,15 +234,15 @@ const color = computed(() => {
 	padding: 12px;
 
 	&.sans-serif {
-		font-family: var(--theme--font-family-sans-serif);
+		font-family: var(--theme--fonts--sans--font-family);
 	}
 
 	&.serif {
-		font-family: var(--theme--font-family-serif);
+		font-family: var(--theme--fonts--serif--font-family);
 	}
 
 	&.monospace {
-		font-family: var(--theme--font-family-monospace);
+		font-family: var(--theme--fonts--monospace--font-family);
 	}
 }
 </style>

@@ -1,6 +1,6 @@
 import { createError, ErrorCode } from '../index.js';
 
-interface ContainsNullValuesErrorExtensions {
+export interface ContainsNullValuesErrorExtensions {
 	collection: string;
 	field: string;
 }
@@ -11,5 +11,5 @@ export const messageConstructor = ({ collection, field }: ContainsNullValuesErro
 export const ContainsNullValuesError = createError<ContainsNullValuesErrorExtensions>(
 	ErrorCode.ContainsNullValues,
 	messageConstructor,
-	400
+	400,
 );

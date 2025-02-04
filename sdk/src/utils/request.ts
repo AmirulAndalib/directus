@@ -12,17 +12,23 @@ import { extractData } from './extract-data.js';
 export const request = async <Output = any>(
 	url: string,
 	options: RequestInit,
-	fetcher: FetchInterface = globalThis.fetch
+	fetcher: FetchInterface = globalThis.fetch,
 ): Promise<Output> => {
 	options.headers =
 		typeof options.headers === 'object' && !Array.isArray(options.headers)
 			? (options.headers as Record<string, string>)
 			: {};
 
-	const response = await fetcher(url, options);
+	return fetcher(url, options).then((response) => {
+		return extractData(response).catch((reason) => {
+			const result: { response: unknown; errors: any; data?: any } = {
+				errors: reason && typeof reason === 'object' && 'errors' in reason ? reason.errors : reason,
+				response,
+			};
 
-	return extractData(response).catch((reason) => {
-		const errors = typeof reason === 'object' && 'errors' in reason ? reason.errors : reason;
-		throw { errors, response };
+			if (reason && typeof reason === 'object' && 'data' in reason) result.data = reason.data;
+
+			return Promise.reject(result);
+		});
 	});
 };

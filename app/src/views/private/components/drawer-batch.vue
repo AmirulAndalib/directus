@@ -12,11 +12,13 @@ const props = defineProps<{
 	primaryKeys: (number | string)[];
 	active?: boolean;
 	edits?: Record<string, any>;
+	stageOnSave?: boolean;
 }>();
 
 const emit = defineEmits<{
 	(e: 'update:active', value: boolean): void;
 	(e: 'refresh'): void;
+	(e: 'input', value: Record<string, any>): void;
 }>();
 
 const { t } = useI18n();
@@ -72,6 +74,13 @@ function useActions() {
 	return { save, cancel, saving, validationErrors };
 
 	async function save() {
+		if (props.stageOnSave) {
+			emit('input', internalEdits.value);
+			internalActive.value = false;
+			internalEdits.value = {};
+			return;
+		}
+
 		saving.value = true;
 
 		try {
@@ -84,15 +93,15 @@ function useActions() {
 
 			internalActive.value = false;
 			internalEdits.value = {};
-		} catch (err: any) {
-			validationErrors.value = err.response.data.errors
+		} catch (error: any) {
+			validationErrors.value = error.response.data.errors
 				.filter((err: APIError) => VALIDATION_TYPES.includes(err?.extensions?.code))
 				.map((err: APIError) => {
 					return err.extensions;
 				});
 
-			const otherErrors = err.response.data.errors.filter(
-				(err: APIError) => VALIDATION_TYPES.includes(err?.extensions?.code) === false
+			const otherErrors = error.response.data.errors.filter(
+				(err: APIError) => VALIDATION_TYPES.includes(err?.extensions?.code) === false,
 			);
 
 			if (otherErrors.length > 0) {

@@ -1,14 +1,12 @@
-<!-- eslint-disable vue/no-v-html vue/no-v-text-v-html-on-component -->
-<script setup lang="ts">
-// Extended version of https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/components/VPSidebarItem.vue
+// Extended version of
+https://github.com/vuejs/vitepress/blob/main/src/client/theme-default/components/VPSidebarItem.vue
 
+<script setup lang="ts">
 import { useData } from 'vitepress';
-// @ts-ignore
 import VPLink from 'vitepress/dist/client/theme-default/components/VPLink.vue';
-// @ts-ignore
 import VPIconChevronRight from 'vitepress/dist/client/theme-default/components/icons/VPIconChevronRight.vue';
 // @ts-ignore
-import { useSidebarControl } from 'vitepress/dist/client/theme-default/composables/sidebar.js';
+import { useSidebarControl } from 'vitepress/dist/client/theme-default/composables/sidebar';
 import type { DefaultTheme } from 'vitepress/theme';
 import { computed, type HTMLAttributes } from 'vue';
 
@@ -22,7 +20,7 @@ const props = defineProps<{
 const { page } = useData();
 
 const activeMatch = computed(() =>
-	props.item.activeMatch ? RegExp(props.item.activeMatch).test(`^/${page.value.relativePath}$`) : false
+	props.item.activeMatch ? RegExp(props.item.activeMatch).test(`^/${page.value.relativePath}$`) : false,
 );
 
 const subItems =
@@ -31,7 +29,7 @@ const subItems =
 		: props.item.items;
 
 const { collapsed, collapsible, isLink, isActiveLink, hasActiveLink, hasChildren, toggle } = useSidebarControl(
-	computed(() => props.item)
+	computed(() => props.item),
 );
 
 const sectionTag = computed(() => (hasChildren.value ? 'section' : `div`));
@@ -65,11 +63,11 @@ function onItemInteraction(e: MouseEvent | Event) {
 		return;
 	}
 
-	!props.item.link && toggle();
+	if (!props.item.link) toggle();
 }
 
 function onCaretClick() {
-	props.item.link && toggle();
+	if (props.item.link) toggle();
 }
 </script>
 

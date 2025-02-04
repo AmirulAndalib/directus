@@ -4,9 +4,9 @@ import type { RestCommand } from '../../types.js';
 import { throwIfEmpty } from '../../utils/index.js';
 
 export type ReadContentVersionOutput<
-	Schema extends object,
+	Schema,
 	TQuery extends Query<Schema, Item>,
-	Item extends object = DirectusVersion<Schema>
+	Item extends object = DirectusVersion<Schema>,
 > = ApplyQueryFields<Schema, Item, TQuery['fields']>;
 
 /**
@@ -15,8 +15,8 @@ export type ReadContentVersionOutput<
  * @returns An array of up to limit Content Version objects. If no items are available, data will be an empty array.
  */
 export const readContentVersions =
-	<Schema extends object, const TQuery extends Query<Schema, DirectusVersion<Schema>>>(
-		query?: TQuery
+	<Schema, const TQuery extends Query<Schema, DirectusVersion<Schema>>>(
+		query?: TQuery,
 	): RestCommand<ReadContentVersionOutput<Schema, TQuery>[], Schema> =>
 	() => ({
 		path: `/versions`,
@@ -32,9 +32,9 @@ export const readContentVersions =
  * @throws Will throw if key is empty
  */
 export const readContentVersion =
-	<Schema extends object, const TQuery extends Query<Schema, DirectusVersion<Schema>>>(
+	<Schema, const TQuery extends Query<Schema, DirectusVersion<Schema>>>(
 		key: DirectusVersion<Schema>['id'],
-		query?: TQuery
+		query?: TQuery,
 	): RestCommand<ReadContentVersionOutput<Schema, TQuery>, Schema> =>
 	() => {
 		throwIfEmpty(String(key), 'Key cannot be empty');

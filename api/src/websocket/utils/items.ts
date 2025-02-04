@@ -1,6 +1,7 @@
+import { InvalidPayloadError } from '@directus/errors';
 import type { Accountability, SchemaOverview } from '@directus/types';
-import { getService } from '../../utils/get-service.js';
 import { CollectionsService, FieldsService, MetaService } from '../../services/index.js';
+import { getService } from '../../utils/get-service.js';
 import type { WebSocketEvent } from '../messages.js';
 import type { Subscription } from '../types.js';
 
@@ -19,7 +20,7 @@ export async function getPayload(
 	subscription: PSubscription,
 	accountability: Accountability | null,
 	schema: SchemaOverview,
-	event?: WebSocketEvent
+	event?: WebSocketEvent,
 ): Promise<Record<string, any>> {
 	const metaService = new MetaService({ schema, accountability });
 
@@ -37,6 +38,8 @@ export async function getPayload(
 		case 'directus_relations':
 			result['data'] = event?.payload;
 			break;
+		case 'directus_extensions':
+			throw new InvalidPayloadError({ reason: '"directus_extensions" is currently not supported.' });
 		default:
 			result['data'] = await getItemsPayload(subscription, accountability, schema, event);
 			break;
@@ -63,7 +66,7 @@ export async function getCollectionPayload(
 	subscription: PSubscription,
 	accountability: Accountability | null,
 	schema: SchemaOverview,
-	event?: WebSocketEvent
+	event?: WebSocketEvent,
 ) {
 	const service = new CollectionsService({ schema, accountability });
 
@@ -101,7 +104,7 @@ export async function getFieldsPayload(
 	subscription: PSubscription,
 	accountability: Accountability | null,
 	schema: SchemaOverview,
-	event?: WebSocketEvent
+	event?: WebSocketEvent,
 ) {
 	const service = new FieldsService({ schema, accountability });
 
@@ -137,7 +140,7 @@ export async function getItemsPayload(
 	subscription: PSubscription,
 	accountability: Accountability | null,
 	schema: SchemaOverview,
-	event?: WebSocketEvent
+	event?: WebSocketEvent,
 ) {
 	const query = subscription.query ?? {};
 	const service = getService(subscription.collection, { schema, accountability });

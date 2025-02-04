@@ -19,6 +19,9 @@ import 'codemirror/addon/search/searchcursor.js';
 
 import 'codemirror/keymap/sublime.js';
 
+/** Regex to check for interpolation, e.g. `{{ $trigger }}` */
+const INTERPOLATION_REGEX = /^\{\{\s*[^}\s]+\s*\}\}$/;
+
 const props = withDefaults(
 	defineProps<{
 		value?: string | Record<string, unknown> | unknown[] | boolean | number | null;
@@ -34,7 +37,7 @@ const props = withDefaults(
 	{
 		lineNumber: true,
 		language: 'plaintext',
-	}
+	},
 );
 
 const emit = defineEmits(['input']);
@@ -76,6 +79,10 @@ onMounted(async () => {
 					return emit('input', null);
 				}
 
+				if (isInterpolation(content)) {
+					return emit('input', content);
+				}
+
 				try {
 					const parsedJson = JSON.parse(content);
 					if (typeof parsedJson !== 'string') return emit('input', parsedJson);
@@ -93,6 +100,8 @@ onMounted(async () => {
 const stringValue = computed(() => {
 	if (props.value === null || props.value === undefined) return '';
 
+	if (props.type === 'json' && isInterpolation(props.value)) return props.value;
+
 	return getStringifiedValue(props.value, props.type === 'json');
 });
 
@@ -100,7 +109,7 @@ watch(
 	() => props.language,
 	() => {
 		setLanguage();
-	}
+	},
 );
 
 watch(stringValue, () => {
@@ -126,6 +135,9 @@ async function setLanguage() {
 
 			CodeMirror.registerHelper('lint', 'json', (text: string) => {
 				const found: Record<string, any>[] = [];
+
+				if (isInterpolation(text)) return found;
+
 				const parser = jsonlint.parser;
 
 				parser.parseError = (str: string, hash: any) => {
@@ -235,7 +247,7 @@ const cmOptions = computed<Record<string, any>>(() => {
 			mode: props.language,
 			placeholder: props.placeholder,
 		},
-		props.altOptions ? props.altOptions : {}
+		props.altOptions ? props.altOptions : {},
 	);
 });
 
@@ -245,7 +257,7 @@ watch(
 		codemirror?.setOption('readOnly', readOnly.value);
 		codemirror?.setOption('cursorBlinkRate', disabled ? -1 : 530);
 	},
-	{ immediate: true }
+	{ immediate: true },
 );
 
 watch(
@@ -257,18 +269,18 @@ watch(
 		for (const key in altOptions) {
 			codemirror?.setOption(key as any, altOptions[key]);
 		}
-	}
+	},
 );
 
 watch(
 	() => props.lineNumber,
 	(lineNumber) => {
 		codemirror?.setOption('lineNumbers', lineNumber);
-	}
+	},
 );
 
 function fillTemplate() {
-	if (props.type === 'json') {
+	if (props.type === 'json' && props.template) {
 		try {
 			emit('input', JSON.parse(props.template));
 		} finally {
@@ -277,6 +289,10 @@ function fillTemplate() {
 	} else {
 		emit('input', props.template);
 	}
+}
+
+function isInterpolation(value: any) {
+	return typeof value === 'string' && value.match(INTERPOLATION_REGEX);
 }
 </script>
 

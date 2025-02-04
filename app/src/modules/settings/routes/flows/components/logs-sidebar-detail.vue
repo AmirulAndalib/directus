@@ -1,21 +1,28 @@
 <script setup lang="ts">
 import { useRevisions } from '@/composables/use-revisions';
 import { useExtensions } from '@/extensions';
-import type { FlowRaw } from '@directus/types';
+import { useGroupable } from '@directus/composables';
 import { Action } from '@directus/constants';
-import { computed, ref, toRefs, unref, watch } from 'vue';
+import type { FlowRaw } from '@directus/types';
+import { abbreviateNumber } from '@directus/utils';
+import { computed, onMounted, ref, toRefs, unref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { getTriggers } from '../triggers';
 
-const { t } = useI18n();
-
-interface Props {
+const props = defineProps<{
 	flow: FlowRaw;
-}
-
-const props = defineProps<Props>();
+}>();
 
 const { flow } = toRefs(props);
+
+const { t } = useI18n();
+
+const title = computed(() => t('logs'));
+
+const { active: open } = useGroupable({
+	value: title.value,
+	group: 'sidebar-detail',
+});
 
 const { triggers } = getTriggers();
 const { operations } = useExtensions();
@@ -26,21 +33,27 @@ const usedTrigger = computed(() => {
 
 const page = ref<number>(1);
 
-const { revisionsByDate, revisionsCount, loading, pagesCount, refresh } = useRevisions(
-	ref('directus_flows'),
-	computed(() => unref(flow).id),
-	ref(null),
-	{
-		action: Action.RUN,
-	}
-);
+const { revisionsByDate, getRevisions, revisionsCount, getRevisionsCount, loading, loadingCount, pagesCount, refresh } =
+	useRevisions(
+		ref('directus_flows'),
+		computed(() => unref(flow).id),
+		ref(null),
+		{
+			action: Action.RUN,
+		},
+	);
 
 watch(
 	() => page.value,
 	(newPage) => {
 		refresh(newPage);
-	}
+	},
 );
+
+onMounted(() => {
+	getRevisionsCount();
+	if (open.value) getRevisions();
+});
 
 const previewing = ref();
 
@@ -85,13 +98,22 @@ const steps = computed(() => {
 				key,
 				status,
 			};
-		}
+		},
 	);
 });
+
+function onToggle(open: boolean) {
+	if (open && revisionsByDate.value === null) getRevisions();
+}
 </script>
 
 <template>
-	<sidebar-detail :title="t('logs')" icon="fact_check" :badge="revisionsCount">
+	<sidebar-detail
+		:title
+		icon="fact_check"
+		:badge="!loadingCount && revisionsCount > 0 ? abbreviateNumber(revisionsCount) : null"
+		@toggle="onToggle"
+	>
 		<v-progress-linear v-if="!revisionsByDate && loading" indeterminate />
 
 		<div v-else-if="revisionsCount === 0" class="empty">{{ t('no_logs') }}</div>
@@ -164,7 +186,7 @@ const steps = computed(() => {
 							<pre class="json selectable">{{ step.options }}</pre>
 						</v-detail>
 
-						<v-detail v-if="step.data" :label="t('payload')">
+						<v-detail v-if="step.data !== null" :label="t('payload')">
 							<pre class="json selectable">{{ step.data }}</pre>
 						</v-detail>
 					</div>
@@ -202,8 +224,8 @@ const steps = computed(() => {
 		z-index: 1;
 		width: calc(100% + 8px);
 		height: calc(100% + 8px);
-		background-color: var(--background-normal-alt);
-		border-radius: var(--border-radius);
+		background-color: var(--theme--background-accent);
+		border-radius: var(--theme--border-radius);
 		opacity: 0;
 		transition: opacity var(--fast) var(--transition);
 		content: '';
@@ -215,7 +237,7 @@ const steps = computed(() => {
 
 		.header {
 			.dot {
-				border-color: var(--background-normal-alt);
+				border-color: var(--theme--background-accent);
 			}
 		}
 
@@ -230,9 +252,9 @@ const steps = computed(() => {
 }
 
 .json {
-	background-color: var(--background-subdued);
-	font-family: var(--theme--font-family-monospace);
-	border-radius: var(--border-radius);
+	background-color: var(--theme--background-subdued);
+	font-family: var(--theme--fonts--monospace--font-family);
+	border-radius: var(--theme--border-radius);
 	padding: 20px;
 	margin-top: 20px;
 	white-space: pre-wrap;
@@ -248,10 +270,10 @@ const steps = computed(() => {
 		&::after {
 			content: '';
 			position: absolute;
-			width: var(--border-width);
+			width: var(--theme--border-width);
 			left: -11px;
 			top: 0;
-			background-color: var(--border-subdued);
+			background-color: var(--theme--border-color-subdued);
 			height: 100%;
 		}
 
@@ -279,7 +301,7 @@ const steps = computed(() => {
 	}
 
 	.mono {
-		font-family: var(--theme--font-family-monospace);
+		font-family: var(--theme--fonts--monospace--font-family);
 		color: var(--theme--foreground-subdued);
 	}
 
@@ -291,7 +313,7 @@ const steps = computed(() => {
 		width: 12px;
 		height: 12px;
 		background-color: var(--theme--primary);
-		border: 2px solid var(--theme--background);
+		border: var(--theme--border-width) solid var(--theme--background);
 		border-radius: 8px;
 
 		&.resolve {

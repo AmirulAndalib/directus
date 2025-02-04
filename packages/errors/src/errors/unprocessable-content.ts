@@ -1,6 +1,6 @@
 import { createError, ErrorCode } from '../index.js';
 
-interface UnprocessableContentErrorExtensions {
+export interface UnprocessableContentErrorExtensions {
 	reason: string;
 }
 
@@ -10,5 +10,5 @@ const messageConstructor = (extensions: UnprocessableContentErrorExtensions) =>
 export const UnprocessableContentError = createError<UnprocessableContentErrorExtensions>(
 	ErrorCode.UnprocessableContent,
 	messageConstructor,
-	422
+	422,
 );

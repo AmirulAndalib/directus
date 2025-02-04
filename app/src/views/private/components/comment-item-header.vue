@@ -1,19 +1,19 @@
 <script setup lang="ts">
 import api from '@/api';
-import { Activity } from '@/types/activity';
+import { getAssetUrl } from '@/utils/get-asset-url';
 import { unexpectedError } from '@/utils/unexpected-error';
 import { userName } from '@/utils/user-name';
-import type { User } from '@directus/types';
-import format from 'date-fns/format';
+import type { Comment, User } from '@directus/types';
+import { format } from 'date-fns';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps<{
-	activity: Activity & {
+	comment: Comment & {
 		display: string;
-		user: Pick<User, 'id' | 'email' | 'first_name' | 'last_name' | 'avatar'>;
+		user_created: Pick<User, 'id' | 'email' | 'first_name' | 'last_name' | 'avatar'>;
 	};
-	refresh: () => void;
+	refresh: () => Promise<void>;
 }>();
 
 defineEmits(['edit']);
@@ -21,18 +21,18 @@ defineEmits(['edit']);
 const { t } = useI18n();
 
 const formattedTime = computed(() => {
-	if (props.activity.timestamp) {
+	if (props.comment.date_created) {
 		// timestamp is in iso-8601
-		return format(new Date(props.activity.timestamp), String(t('date-fns_time_no_seconds')));
+		return format(new Date(props.comment.date_created), String(t('date-fns_time_no_seconds')));
 	}
 
 	return null;
 });
 
 const avatarSource = computed(() => {
-	if (!props.activity.user?.avatar) return null;
+	if (!props.comment.user_created?.avatar) return null;
 
-	return `/assets/${props.activity.user.avatar.id}?key=system-small-cover`;
+	return getAssetUrl(`${props.comment.user_created.avatar.id}?key=system-small-cover`);
 });
 
 const { confirmDelete, deleting, remove } = useDelete();
@@ -47,11 +47,11 @@ function useDelete() {
 		deleting.value = true;
 
 		try {
-			await api.delete(`/activity/comment/${props.activity.id}`);
+			await api.delete(`/comments/${props.comment.id}`);
 			await props.refresh();
 			confirmDelete.value = false;
-		} catch (err: any) {
-			unexpectedError(err);
+		} catch (error) {
+			unexpectedError(error);
 		} finally {
 			deleting.value = false;
 		}
@@ -62,22 +62,19 @@ function useDelete() {
 <template>
 	<div class="comment-header">
 		<v-avatar x-small>
-			<v-image v-if="avatarSource" :src="avatarSource" :alt="userName(activity.user)" />
+			<v-image v-if="avatarSource" :src="avatarSource" :alt="userName(comment.user_created)" />
 			<v-icon v-else name="person_outline" />
 		</v-avatar>
 
 		<div class="name">
-			<user-popover v-if="activity.user && activity.user.id" :user="activity.user.id">
+			<user-popover v-if="comment.user_created && comment.user_created.id" :user="comment.user_created.id">
 				<span>
-					<template v-if="activity.user && activity.user">
-						{{ userName(activity.user) }}
-					</template>
-
-					<template v-else>
-						{{ t('private_user') }}
-					</template>
+					{{ userName(comment.user_created) }}
 				</span>
 			</user-popover>
+			<span v-else>
+				{{ t('private_user') }}
+			</span>
 		</div>
 
 		<div class="header-right">
@@ -128,7 +125,7 @@ function useDelete() {
 	margin-bottom: 8px;
 
 	.v-avatar {
-		--v-avatar-color: var(--background-normal-alt);
+		--v-avatar-color: var(--theme--background-accent);
 
 		flex-basis: 24px;
 		margin-right: 8px;

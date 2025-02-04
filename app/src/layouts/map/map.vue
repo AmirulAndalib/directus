@@ -1,15 +1,11 @@
-<script lang="ts">
-export default {
-	inheritAttrs: false,
-};
-</script>
-
 <script setup lang="ts">
 import { usePageSize } from '@/composables/use-page-size';
 import { useSync } from '@directus/composables';
 import { GeometryOptions } from '@directus/types';
 import { useI18n } from 'vue-i18n';
 import MapComponent from './components/map.vue';
+
+defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(
 	defineProps<{
@@ -24,6 +20,7 @@ const props = withDefaults(
 		updateItemPopup: () => void;
 		geojsonLoading: boolean;
 		loading: boolean;
+		totalCount: number | null;
 		totalPages: number;
 		page: number;
 		toPage: (newPage: number) => void;
@@ -35,14 +32,13 @@ const props = withDefaults(
 		featureId?: string;
 		geojsonBounds?: any;
 		cameraOptions?: any;
-		itemCount?: number;
 		autoLocationFilter?: boolean;
 		template?: string;
 		itemPopup?: { item?: any; position?: { x: number; y: number } };
 	}>(),
 	{
 		selection: () => [],
-	}
+	},
 );
 
 const emit = defineEmits(['update:cameraOptions', 'update:limit']);
@@ -55,7 +51,7 @@ const limitWritable = useSync(props, 'limit', emit);
 const { sizes: pageSizes, selected: selectedSize } = usePageSize<{ text: string; value: number }>(
 	[100, 1000, 10000, 100000],
 	(value) => ({ text: n(value), value }),
-	props.limit
+	props.limit,
 );
 
 limitWritable.value = selectedSize;
@@ -92,15 +88,7 @@ limitWritable.value = selectedSize;
 		</transition>
 
 		<transition name="fade">
-			<v-info v-if="error" type="danger" :title="t('unexpected_error')" icon="error" center>
-				{{ t('unexpected_error_copy') }}
-				<template #append>
-					<v-error :error="error" />
-					<v-button small class="reset-preset" @click="resetPresetAndRefresh">
-						{{ t('reset_page_preferences') }}
-					</v-button>
-				</template>
-			</v-info>
+			<slot v-if="error" name="error" :error="error" :reset="resetPresetAndRefresh" />
 			<v-info
 				v-else-if="geojsonError"
 				type="warning"
@@ -113,7 +101,7 @@ limitWritable.value = selectedSize;
 			<v-progress-circular v-else-if="loading || geojsonLoading" indeterminate x-large class="center" />
 		</transition>
 
-		<template v-if="loading || itemCount! > 0">
+		<template v-if="loading || (totalCount ?? 0) > 0">
 			<div class="footer">
 				<div v-if="totalPages > 1" class="pagination">
 					<v-pagination
@@ -137,8 +125,7 @@ limitWritable.value = selectedSize;
 .v-info {
 	padding: 40px;
 	background-color: var(--theme--background);
-	border-radius: var(--border-radius);
-	box-shadow: var(--card-shadow);
+	border-radius: var(--theme--border-radius);
 	pointer-events: none;
 }
 
@@ -171,14 +158,6 @@ limitWritable.value = selectedSize;
 	transform: translate(-50%, -50%);
 }
 
-.location-filter {
-	position: absolute;
-	top: 10px;
-	left: 50%;
-	box-shadow: var(--card-shadow);
-	transform: translate(-50%, 0%);
-}
-
 .popup {
 	position: fixed;
 	z-index: 1;
@@ -187,10 +166,10 @@ limitWritable.value = selectedSize;
 	color: var(--theme--foreground-accent);
 	font-weight: 500;
 	font-size: 14px;
-	font-family: var(--theme--font-family-sans-serif);
-	background-color: var(--theme--background);
-	border-radius: var(--border-radius);
-	box-shadow: var(--card-shadow);
+	font-family: var(--theme--fonts--sans--font-family);
+	background: var(--theme--popover--menu--background);
+	border-radius: var(--theme--popover--menu--border-radius);
+	box-shadow: var(--theme--popover--menu--box-shadow);
 	transform: translate(-50%, -140%);
 	pointer-events: none;
 }
@@ -206,10 +185,10 @@ limitWritable.value = selectedSize;
 	height: 36px;
 	padding: 10px;
 	color: var(--theme--foreground-subdued);
-	background-color: var(--theme--background);
-	border: var(--border-width) solid var(--theme--background);
-	border-radius: var(--border-radius);
-	box-shadow: 0 0 3px 1px rgba(0, 0, 0, 0.1);
+	background: var(--theme--popover--menu--background);
+	border-radius: var(--theme--popover--menu--border-radius);
+	box-shadow: var(--theme--popover--menu--box-shadow);
+	border: var(--theme--border-width) solid var(--theme--background);
 
 	span {
 		width: auto;
@@ -224,10 +203,6 @@ limitWritable.value = selectedSize;
 .v-progress-circular {
 	--v-progress-circular-background-color: var(--theme--primary-background);
 	--v-progress-circular-color: var(--theme--primary);
-}
-
-.reset-preset {
-	margin-top: 24px;
 }
 
 .footer {

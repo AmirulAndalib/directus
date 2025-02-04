@@ -1,4 +1,4 @@
-@import './mixins/form-grid.scss';
+@use 'mixins';
 
 *:not(svg *) {
 	box-sizing: border-box;
@@ -21,7 +21,7 @@ body {
 	color: var(--theme--foreground);
 	font-weight: 500;
 	font-size: 14px;
-	font-family: var(--theme--font-family-sans-serif);
+	font-family: var(--theme--fonts--sans--font-family);
 	font-style: normal;
 	line-height: 22px;
 	background-color: var(--theme--background);
@@ -108,11 +108,11 @@ strong {
 }
 
 code {
-	font-family: var(--theme--font-family-monospace);
+	font-family: var(--theme--fonts--monospace--font-family);
 }
 
 ::selection {
-	background: var(--background-normal-alt);
+	background: var(--theme--background-accent);
 }
 
 dl > div {
@@ -144,7 +144,7 @@ dd a {
 }
 
 .form-grid {
-	@include form-grid;
+	@include mixins.form-grid;
 }
 
 input[type='number']::-webkit-inner-spin-button,

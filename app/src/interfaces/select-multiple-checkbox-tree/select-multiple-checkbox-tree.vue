@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { debounce } from 'lodash';
-import { ref, watch } from 'vue';
+import { computed, ref, toRefs, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 export type Choice = {
@@ -9,7 +9,7 @@ export type Choice = {
 	children?: Choice[];
 };
 
-withDefaults(
+const props = withDefaults(
 	defineProps<{
 		value: string[] | null;
 		disabled?: boolean;
@@ -20,13 +20,16 @@ withDefaults(
 		value: () => [],
 		choices: () => [],
 		valueCombining: 'all',
-	}
+	},
 );
 
 defineEmits(['input']);
 
 const { t } = useI18n();
 const search = ref('');
+
+const { choices, value } = toRefs(props);
+const items = computed(() => choices.value || []);
 
 const showSelectionOnly = ref(false);
 
@@ -40,8 +43,11 @@ const searchDebounced = ref('');
 </script>
 
 <template>
-	<div class="select-multiple-checkbox-tree">
-		<div v-if="choices.length > 10" class="search">
+	<v-notice v-if="items.length === 0" type="info">
+		{{ t('no_options_available') }}
+	</v-notice>
+	<div v-else class="select-multiple-checkbox-tree">
+		<div v-if="items.length > 10" class="search">
 			<v-input v-model="search" class="input" type="text" :placeholder="t('search')">
 				<template #prepend>
 					<v-icon name="search" />
@@ -57,7 +63,7 @@ const searchDebounced = ref('');
 			:model-value="value"
 			:search="searchDebounced"
 			:disabled="disabled"
-			:choices="choices"
+			:choices="items"
 			:value-combining="valueCombining"
 			:show-selection-only="showSelectionOnly"
 			@update:model-value="$emit('input', $event)"
@@ -84,8 +90,8 @@ const searchDebounced = ref('');
 	max-height: var(--input-height-max);
 	overflow: auto;
 	background-color: var(--theme--background);
-	border: var(--border-width) solid var(--border-normal);
-	border-radius: var(--border-radius);
+	border: var(--theme--border-width) solid var(--theme--form--field--input--border-color);
+	border-radius: var(--theme--border-radius);
 }
 
 .search {
@@ -110,7 +116,7 @@ const searchDebounced = ref('');
 	padding: 4px 8px;
 	text-align: right;
 	background-color: var(--theme--background);
-	border-top-left-radius: var(--border-radius);
+	border-top-left-radius: var(--theme--border-radius);
 }
 
 .footer > button {

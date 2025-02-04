@@ -41,7 +41,7 @@ watch(
 				};
 			});
 	},
-	{ immediate: true }
+	{ immediate: true },
 );
 
 const errorFormatted = computed(() => {
@@ -71,7 +71,7 @@ const errorFormatted = computed(() => {
 					<v-icon :name="provider.icon" />
 				</div>
 				<div class="sso-title">
-					{{ t('log_in_with', { provider: provider.label }) }}
+					<v-text-overflow :text="t('log_in_with', { provider: provider.label })" />
 				</div>
 			</a>
 		</template>
@@ -92,24 +92,22 @@ const errorFormatted = computed(() => {
 
 	display: flex;
 	width: 100%;
-	height: var(--input-height);
-	background-color: var(--background-normal);
-	border: $sso-link-border-width var(--background-normal) solid;
-	border-radius: var(--border-radius);
+	height: var(--theme--form--field--input--height);
+	background-color: var(--theme--background-normal);
+	border: $sso-link-border-width var(--theme--background-normal) solid;
+	border-radius: var(--theme--border-radius);
 	transition: border-color var(--fast) var(--transition);
 
 	.sso-icon {
+		--v-icon-size: 28px;
+
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: var(--input-height);
+		width: var(--theme--form--field--input--height);
 		margin: -$sso-link-border-width;
-		background-color: var(--background-normal-alt);
-		border-radius: var(--border-radius);
-
-		span {
-			--v-icon-size: 28px;
-		}
+		background-color: var(--theme--background-accent);
+		border-radius: var(--theme--border-radius);
 	}
 
 	.sso-title {
@@ -117,10 +115,11 @@ const errorFormatted = computed(() => {
 		align-items: center;
 		padding: 0 16px 0 20px;
 		font-size: 16px;
+		overflow: hidden;
 	}
 
 	&:hover {
-		border-color: var(--background-normal-alt);
+		border-color: var(--theme--background-accent);
 	}
 
 	& + & {

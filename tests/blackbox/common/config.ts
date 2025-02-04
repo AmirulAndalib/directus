@@ -66,7 +66,7 @@ const directusStorageConfig = {
 	STORAGE_MINIO_SECRET: 'miniosecret',
 	STORAGE_MINIO_BUCKET: 'directus-blackbox-test',
 	STORAGE_MINIO_REGION: 'us-east-1',
-	STORAGE_MINIO_ENDPOINT: 'http://localhost:8881',
+	STORAGE_MINIO_ENDPOINT: 'http://127.0.0.1:8881',
 	STORAGE_MINIO_FORCE_PATH_STYLE: 'true',
 };
 
@@ -74,10 +74,10 @@ const directusConfig = {
 	...process.env,
 	ADMIN_EMAIL: 'admin@example.com',
 	ADMIN_PASSWORD: 'password',
-	KEY: 'directus-test',
 	SECRET: 'directus-test',
 	TELEMETRY: 'false',
 	CACHE_SCHEMA: 'true',
+	CACHE_SCHEMA_MAX_ITERATIONS: 100,
 	CACHE_ENABLED: 'false',
 	RATE_LIMITER_ENABLED: 'false',
 	PRESSURE_LIMITER_ENABLED: 'false',
@@ -120,7 +120,7 @@ const config: Config = {
 			...knexConfig,
 		},
 		mysql: {
-			client: 'mysql',
+			client: 'mysql2',
 			connection: {
 				database: 'directus',
 				user: 'root',
@@ -131,7 +131,7 @@ const config: Config = {
 			...knexConfig,
 		},
 		mysql5: {
-			client: 'mysql',
+			client: 'mysql2',
 			connection: {
 				database: 'directus',
 				user: 'root',
@@ -142,12 +142,12 @@ const config: Config = {
 			...knexConfig,
 		},
 		maria: {
-			client: 'mysql',
+			client: 'mysql2',
 			connection: {
 				database: 'directus',
 				user: 'root',
 				password: 'secret',
-				host: 'localhost',
+				host: '127.0.0.1',
 				port: 6104,
 			},
 			...knexConfig,
@@ -264,7 +264,7 @@ const config: Config = {
 		maria: {
 			...directusConfig,
 			DB_CLIENT: 'mysql',
-			DB_HOST: `localhost`,
+			DB_HOST: `127.0.0.1`,
 			DB_PORT: '6104',
 			DB_USER: 'root',
 			DB_PASSWORD: 'secret',
@@ -312,6 +312,7 @@ const isWindows = ['win32', 'win64'].includes(process.platform);
 
 for (const vendor of allVendors) {
 	config.envs[vendor]['TZ'] = isWindows ? '0' : 'UTC';
+	config.envs[vendor]['PUBLIC_URL'] = getUrl(vendor);
 }
 
 export function getUrl(vendor: Vendor, overrideEnv?: Env) {

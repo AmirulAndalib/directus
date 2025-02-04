@@ -13,7 +13,7 @@ const props = withDefaults(
 	{
 		h: '2',
 		icon: 'link',
-	}
+	},
 );
 
 const tagType = computed(() => (props.url ? 'a' : 'div'));
@@ -25,7 +25,7 @@ const iconIsImage = computed(() => props.icon.startsWith('/'));
 	<component :is="tagType" :href="url" class="card" :class="{ margin: addMargin }">
 		<div v-if="icon" class="icon">
 			<img v-if="iconIsImage" :src="icon" alt="" />
-			<span v-else mi>{{ icon }}</span>
+			<span v-else mi translate="no">{{ icon }}</span>
 		</div>
 
 		<div class="text">
@@ -72,7 +72,9 @@ const iconIsImage = computed(() => props.icon.startsWith('/'));
 
 .icon span[mi] {
 	font-size: 24px;
-	font-variation-settings: 'opsz' 24, 'wght' 500;
+	font-variation-settings:
+		'opsz' 24,
+		'wght' 500;
 	color: var(--vp-c-purple);
 }
 

@@ -1,7 +1,7 @@
 import type { Range } from '@directus/storage';
 import { createError, ErrorCode } from '../index.js';
 
-interface RangeNotSatisfiableErrorExtensions {
+export interface RangeNotSatisfiableErrorExtensions {
 	range: Range;
 }
 
@@ -13,5 +13,5 @@ export const messageConstructor = ({ range }: RangeNotSatisfiableErrorExtensions
 export const RangeNotSatisfiableError = createError<RangeNotSatisfiableErrorExtensions>(
 	ErrorCode.RangeNotSatisfiable,
 	messageConstructor,
-	416
+	416,
 );

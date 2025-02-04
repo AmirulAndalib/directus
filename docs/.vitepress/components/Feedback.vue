@@ -98,7 +98,7 @@ async function handleSubmission(rating?: number) {
 					<div>
 						<span>{{ getRatingOption(feedback.rating)?.label }}</span>
 						<button style="margin-left: 0.5rem" class="btn" @click="feedback.rating = undefined">
-							<span mi icon>close</span>
+							<span mi icon translate="no">close</span>
 						</button>
 					</div>
 				</div>
@@ -124,7 +124,9 @@ async function handleSubmission(rating?: number) {
 	border: 1px solid var(--vp-c-divider);
 	background-color: var(--vp-c-bg);
 	border-radius: 8px;
-	transition: border-color 0.25s, background-color 0.25s;
+	transition:
+		border-color 0.25s,
+		background-color 0.25s;
 	display: inline-block;
 	font-size: 14px;
 	font-weight: 500;

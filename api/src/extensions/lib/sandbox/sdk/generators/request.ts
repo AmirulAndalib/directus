@@ -10,7 +10,7 @@ export function requestGenerator(requestedScopes: ExtensionSandboxRequestedScope
 		method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 		body?: Record<string, any> | string;
 		headers?: Record<string, string>;
-	}>
+	}>,
 ) => Promise<{
 	status: number;
 	statusText: string;
@@ -51,8 +51,8 @@ export function requestGenerator(requestedScopes: ExtensionSandboxRequestedScope
 			throw new TypeError('Request body has to be of type string or object');
 		}
 
-		if (headers !== undefined && headers.typeof !== 'undefined' && headers.typeof !== 'array') {
-			throw new TypeError('Request headers has to be of type array');
+		if (headers !== undefined && headers.typeof !== 'undefined' && headers.typeof !== 'object') {
+			throw new TypeError('Request headers has to be of type object');
 		}
 
 		const methodCopied = await method?.copy();

@@ -55,7 +55,7 @@ const parts = computed<HighlightPart[]>(() => {
 			acc.push(indices);
 
 			return acc;
-		}, [])
+		}, []),
 	);
 
 	matches.sort((a, b) => {
@@ -132,8 +132,16 @@ const parts = computed<HighlightPart[]>(() => {
 </template>
 
 <style scoped>
+/*
+
+	Available Variables:
+
+		--v-highlight-color  [var(--background-mark)]
+
+*/
+
 mark {
-	background-color: var(--background-mark);
+	background-color: var(--v-highlight-color, var(--background-mark));
 	border-radius: 2px;
 }
 </style>

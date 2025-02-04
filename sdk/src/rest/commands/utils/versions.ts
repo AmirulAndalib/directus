@@ -12,9 +12,9 @@ import { throwIfEmpty } from '../../utils/index.js';
  * @returns State of the item after save.
  */
 export const saveToContentVersion =
-	<Schema extends object, Collection extends keyof Schema, Item = UnpackList<Schema[Collection]>>(
+	<Schema, Collection extends keyof Schema, Item = UnpackList<Schema[Collection]>>(
 		id: DirectusVersion<Schema>['id'],
-		item: Partial<Item>
+		item: Partial<Item>,
 	): RestCommand<Item, Schema> =>
 	() => {
 		throwIfEmpty(id, 'ID cannot be empty');
@@ -36,8 +36,8 @@ whether the Content Version is outdated (i.e. main version of the item has been 
 Content Version)
  */
 export const compareContentVersion =
-	<Schema extends object, Collection extends keyof Schema, Item = UnpackList<Schema[Collection]>>(
-		id: DirectusVersion<Schema>['id']
+	<Schema, Collection extends keyof Schema, Item = UnpackList<Schema[Collection]>>(
+		id: DirectusVersion<Schema>['id'],
 	): RestCommand<
 		{
 			outdated: boolean;
@@ -66,10 +66,10 @@ export const compareContentVersion =
  * @returns The primary key of the promoted item.
  */
 export const promoteContentVersion =
-	<Schema extends object, Collection extends keyof Schema, Item = UnpackList<Schema[Collection]>>(
+	<Schema, Collection extends keyof Schema, Item = UnpackList<Schema[Collection]>>(
 		id: DirectusVersion<Schema>['id'],
 		mainHash: string,
-		fields?: (keyof UnpackList<Item>)[]
+		fields?: (keyof UnpackList<Item>)[],
 	): RestCommand<string | number, Schema> =>
 	() => {
 		throwIfEmpty(id, 'ID cannot be empty');

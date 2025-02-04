@@ -1,20 +1,19 @@
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n';
-import { ref, computed, unref } from 'vue';
+import { useExtension } from '@/composables/use-extension';
 import { useFieldsStore } from '@/stores/fields';
-import { useRouter } from 'vue-router';
-import { cloneDeep } from 'lodash';
 import { getLocalTypeForField } from '@/utils/get-local-type';
+import { getRelatedCollection } from '@/utils/get-related-collection';
 import { getSpecialForType } from '@/utils/get-special-for-type';
+import { hideDragImage } from '@/utils/hide-drag-image';
 import { notify } from '@/utils/notify';
 import { unexpectedError } from '@/utils/unexpected-error';
-import { Field } from '@directus/types';
-import FieldSelectMenu from './field-select-menu.vue';
-import { hideDragImage } from '@/utils/hide-drag-image';
+import type { Field, Width } from '@directus/types';
+import { cloneDeep } from 'lodash';
+import { computed, ref, unref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import Draggable from 'vuedraggable';
-import formatTitle from '@directus/format-title';
-import { useExtension } from '@/composables/use-extension';
-import { getRelatedCollection } from '@/utils/get-related-collection';
+import FieldSelectMenu from './field-select-menu.vue';
 
 const props = withDefaults(
 	defineProps<{
@@ -24,7 +23,7 @@ const props = withDefaults(
 	}>(),
 	{
 		fields: () => [],
-	}
+	},
 );
 
 const emit = defineEmits(['setNestedSort']);
@@ -40,7 +39,7 @@ const { duplicateActive, duplicateName, duplicateTo, saveDuplicate, duplicating 
 
 const inter = useExtension(
 	'interface',
-	computed(() => props.field.meta?.interface ?? null)
+	computed(() => props.field.meta?.interface ?? null),
 );
 
 const interfaceName = computed(() => inter.value?.name ?? null);
@@ -57,17 +56,25 @@ const showRelatedCollectionLink = computed(
 	() =>
 		unref(relatedCollectionInfo) !== null &&
 		props.field.collection !== unref(relatedCollectionInfo)?.relatedCollection &&
-		['translations', 'm2o', 'm2m', 'o2m', 'files'].includes(unref(localType) as string)
+		['translations', 'm2o', 'm2m', 'o2m', 'files'].includes(unref(localType) as string),
 );
 
-function setWidth(width: string) {
-	fieldsStore.updateField(props.field.collection, props.field.field, { meta: { width } });
+async function setWidth(width: Width) {
+	try {
+		await fieldsStore.updateField(props.field.collection, props.field.field, { meta: { width } });
+	} catch (error) {
+		unexpectedError(error);
+	}
 }
 
-function toggleVisibility() {
-	fieldsStore.updateField(props.field.collection, props.field.field, {
-		meta: { hidden: !props.field.meta?.hidden },
-	});
+async function toggleVisibility() {
+	try {
+		await fieldsStore.updateField(props.field.collection, props.field.field, {
+			meta: { hidden: !props.field.meta?.hidden },
+		});
+	} catch (error) {
+		unexpectedError(error);
+	}
 }
 
 function useDeleteField() {
@@ -131,8 +138,8 @@ function useDuplicate() {
 			});
 
 			duplicateActive.value = false;
-		} catch (err: any) {
-			unexpectedError(err);
+		} catch (error) {
+			unexpectedError(error);
 		} finally {
 			duplicating.value = false;
 		}
@@ -142,7 +149,12 @@ function useDuplicate() {
 async function openFieldDetail() {
 	if (!props.field.meta) {
 		const special = getSpecialForType(props.field.type);
-		await fieldsStore.updateField(props.field.collection, props.field.field, { meta: { special } });
+
+		try {
+			await fieldsStore.updateField(props.field.collection, props.field.field, { meta: { special } });
+		} catch (error) {
+			unexpectedError(error);
+		}
 	}
 
 	router.push(`/settings/data-model/${props.field.collection}/${props.field.field}`);
@@ -159,6 +171,8 @@ async function onGroupSortChange(fields: Field[]) {
 
 	emit('setNestedSort', updates);
 }
+
+const tFieldType = (type: string) => t(type === 'geometry' ? 'geometry.All' : type);
 </script>
 
 <template>
@@ -170,7 +184,7 @@ async function onGroupSortChange(fields: Field[]) {
 
 			<template #input>
 				<div
-					v-tooltip="`${field.name} (${formatTitle(field.type)})${interfaceName ? ` - ${interfaceName}` : ''}`"
+					v-tooltip="`${field.name} (${tFieldType(field.type)})${interfaceName ? ` - ${interfaceName}` : ''}`"
 					class="label"
 				>
 					<div class="label-inner">
@@ -186,14 +200,12 @@ async function onGroupSortChange(fields: Field[]) {
 				v-if="localType === 'group'"
 				class="field-grid group full nested"
 				:model-value="nestedFields"
-				force-fallback
 				handle=".drag-handle"
 				:group="{ name: 'fields' }"
 				:set-data="hideDragImage"
 				:animation="150"
 				item-key="field"
-				fallback-on-body
-				invert-swap
+				v-bind="{ 'force-fallback': true, 'fallback-on-body': true, 'invert-swap': true }"
 				@update:model-value="onGroupSortChange"
 			>
 				<template #header>
@@ -227,7 +239,7 @@ async function onGroupSortChange(fields: Field[]) {
 
 				<template #input>
 					<div
-						v-tooltip="`${field.name} (${formatTitle(field.type)})${interfaceName ? ` - ${interfaceName}` : ''}`"
+						v-tooltip="`${field.name} (${tFieldType(field.type)})${interfaceName ? ` - ${interfaceName}` : ''}`"
 						class="label"
 						@click="openFieldDetail"
 					>
@@ -318,11 +330,9 @@ async function onGroupSortChange(fields: Field[]) {
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/mixins/form-grid';
-
 .field-select {
-	--input-height: 48px;
-	--input-padding: 8px;
+	--input-height: 40px;
+	--theme--form--field--input--padding: 8px;
 }
 
 .full,
@@ -331,11 +341,11 @@ async function onGroupSortChange(fields: Field[]) {
 }
 
 .v-input.monospace {
-	--v-input-font-family: var(--theme--font-family-monospace);
+	--v-input-font-family: var(--theme--fonts--monospace--font-family);
 }
 
 .v-select.monospace {
-	--v-select-font-family: var(--theme--font-family-monospace);
+	--v-select-font-family: var(--theme--fonts--monospace--font-family);
 }
 
 .v-icon {
@@ -372,11 +382,11 @@ async function onGroupSortChange(fields: Field[]) {
 
 .group {
 	position: relative;
-	min-height: var(--input-height);
-	padding: var(--input-padding);
+	min-height: var(--theme--form--field--input--height);
+	padding: var(--theme--form--field--input--padding);
 	padding-top: 40px;
 	padding-bottom: 16px;
-	border-radius: var(--border-radius);
+	border-radius: var(--theme--border-radius);
 
 	> * {
 		position: relative;
@@ -417,7 +427,7 @@ async function onGroupSortChange(fields: Field[]) {
 		margin-bottom: 8px;
 		padding-top: 8px;
 		color: var(--theme--primary);
-		font-family: var(--theme--font-family-monospace);
+		font-family: var(--theme--fonts--monospace--font-family);
 
 		.drag-handle {
 			--v-icon-color: var(--theme--primary);
@@ -443,19 +453,18 @@ async function onGroupSortChange(fields: Field[]) {
 
 	&.nested {
 		.field :deep(.input) {
-			border: var(--border-width) solid var(--theme--primary-subdued);
+			border: var(--theme--border-width) solid var(--theme--primary-subdued);
 		}
 	}
 }
 
 .field {
 	&.v-input :deep(.input) {
-		border: var(--border-width) solid var(--border-subdued);
+		border: var(--theme--border-width) solid var(--theme--border-color-subdued);
 	}
 
 	&.v-input :deep(.input:hover) {
-		background-color: var(--card-face-color);
-		border: var(--border-width) solid var(--border-normal-alt);
+		border: var(--theme--border-width) solid var(--theme--form--field--input--border-color-hover);
 	}
 
 	.label {
@@ -473,13 +482,13 @@ async function onGroupSortChange(fields: Field[]) {
 
 			.name {
 				margin-right: 8px;
-				font-family: var(--theme--font-family-monospace);
+				font-family: var(--theme--fonts--monospace--font-family);
 			}
 
 			.interface {
 				display: none;
 				color: var(--theme--foreground-subdued);
-				font-family: var(--theme--font-family-monospace);
+				font-family: var(--theme--fonts--monospace--font-family);
 				opacity: 0;
 				transition: opacity var(--fast) var(--transition);
 
@@ -510,7 +519,7 @@ async function onGroupSortChange(fields: Field[]) {
 }
 
 .form-grid {
-	--form-vertical-gap: 24px;
+	--theme--form--row-gap: 24px;
 }
 
 .required {
@@ -520,7 +529,7 @@ async function onGroupSortChange(fields: Field[]) {
 }
 
 .sortable-ghost {
-	border-radius: var(--border-radius);
+	border-radius: var(--theme--border-radius);
 	outline: 2px dashed var(--theme--primary);
 
 	> * {

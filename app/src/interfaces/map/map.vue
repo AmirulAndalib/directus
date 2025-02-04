@@ -6,9 +6,7 @@ import { ButtonControl } from '@/utils/geometry/controls';
 import { useAppStore } from '@directus/stores';
 import { Field, GeoJSONParser, GeoJSONSerializer, GeometryType, MultiGeometry, SimpleGeometry } from '@directus/types';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
-import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
 import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
-import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 import { Geometry } from 'geojson';
 import { debounce, isEqual, snakeCase } from 'lodash';
 import maplibre, {
@@ -21,7 +19,6 @@ import maplibre, {
 	Map,
 	NavigationControl,
 } from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
 import type { Ref } from 'vue';
 import { computed, onMounted, onUnmounted, ref, toRefs, watch } from 'vue';
 import { TranslateResult, useI18n } from 'vue-i18n';
@@ -29,6 +26,10 @@ import { getMapStyle } from './style';
 
 // @ts-ignore
 import StaticMode from '@mapbox/mapbox-gl-draw-static-mode';
+
+import '@mapbox/mapbox-gl-draw/dist/mapbox-gl-draw.css';
+import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
+import 'maplibre-gl/dist/maplibre-gl.css';
 
 const activeLayers = [
 	'directus-point',
@@ -52,7 +53,7 @@ const props = withDefaults(
 	{
 		loading: true,
 		defaultView: () => ({}),
-	}
+	},
 );
 
 const emit = defineEmits<{
@@ -80,6 +81,7 @@ const { basemap } = toRefs(appStore);
 
 const style = computed(() => {
 	const source = basemaps.find((source) => source.name == basemap.value) ?? basemaps[0];
+	if (!source) return;
 	return basemap.value, getStyleFromBasemapSource(source);
 });
 
@@ -243,7 +245,7 @@ function updateValue(value: any) {
 
 function updateStyle() {
 	map.removeControl(controls.draw as any);
-	map.setStyle(style.value, { diff: false });
+	if (style.value) map.setStyle(style.value, { diff: false });
 	controls.draw = new MapboxDraw(getDrawOptions(geometryType));
 	map.addControl(controls.draw as any, 'top-left');
 	loadValueFromProps();
@@ -348,13 +350,13 @@ function getCurrentGeometry(): Geometry | null {
 	const geometries = features.map((f) => f.geometry) as (SimpleGeometry | MultiGeometry)[];
 	let result: Geometry;
 
-	if (geometries.length == 0) {
+	if (geometries.length === 0) {
 		return null;
 	} else if (!geometryType) {
 		if (geometries.length > 1) {
 			result = { type: 'GeometryCollection', geometries };
 		} else {
-			result = geometries[0];
+			result = geometries[0] as Geometry;
 		}
 	} else if (geometryType.startsWith('Multi')) {
 		const coordinates = geometries
@@ -363,7 +365,7 @@ function getCurrentGeometry(): Geometry | null {
 
 		result = { type: geometryType, coordinates } as Geometry;
 	} else {
-		result = geometries[geometries.length - 1];
+		result = geometries[geometries.length - 1] as Geometry;
 	}
 
 	return result;
@@ -414,7 +416,9 @@ function handleKeyDown(event: any) {
 		<div
 			v-if="location"
 			class="mapboxgl-user-location-dot mapboxgl-search-location-dot"
-			:style="`transform: translate(${projection!.x}px, ${projection!.y}px) translate(-50%, -50%) rotateX(0deg) rotateZ(0deg)`"
+			:style="`transform: translate(${projection!.x}px, ${
+				projection!.y
+			}px) translate(-50%, -50%) rotateX(0deg) rotateZ(0deg)`"
 		></div>
 		<transition name="fade">
 			<div
@@ -466,8 +470,8 @@ function handleKeyDown(event: any) {
 .interface-map {
 	position: relative;
 	overflow: hidden;
-	border: var(--border-width) solid var(--border-normal);
-	border-radius: var(--border-radius);
+	border: var(--theme--border-width) solid var(--theme--form--field--input--border-color);
+	border-radius: var(--theme--border-radius);
 
 	.map {
 		position: relative;
@@ -492,8 +496,7 @@ function handleKeyDown(event: any) {
 	.v-info {
 		padding: 20px;
 		background-color: var(--theme--form--field--input--background);
-		border-radius: var(--border-radius);
-		box-shadow: var(--card-shadow);
+		border-radius: var(--theme--border-radius);
 	}
 
 	.basemap-select {
@@ -507,8 +510,8 @@ function handleKeyDown(event: any) {
 		padding: 10px;
 		color: var(--theme--form--field--input--foreground-subdued);
 		background-color: var(--theme--background);
-		border: var(--border-width) solid var(--theme--background);
-		border-radius: var(--border-radius);
+		border: var(--theme--border-width) solid var(--theme--background);
+		border-radius: var(--theme--border-radius);
 
 		span {
 			width: auto;

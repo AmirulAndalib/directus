@@ -1,18 +1,15 @@
-<script lang="ts">
-export default {
-	inheritAttrs: false,
-};
-</script>
-
 <script setup lang="ts">
 import { usePageSize } from '@/composables/use-page-size';
 import { Collection } from '@/types/collections';
 import { useElementSize, useSync } from '@directus/composables';
-import { Field, Filter, Item, ShowSelect } from '@directus/types';
+import type { ShowSelect } from '@directus/extensions';
+import type { Field, Filter, Item } from '@directus/types';
 import { Ref, inject, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Card from './components/card.vue';
 import CardsHeader from './components/header.vue';
+
+defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(
 	defineProps<{
@@ -38,18 +35,19 @@ const props = withDefaults(
 		loading: boolean;
 		showSelect?: ShowSelect;
 		error?: any;
-		itemCount?: number;
+		itemCount: number | null;
+		totalCount: number | null;
 		primaryKeyField?: Field;
 		imageSource?: string;
 		title?: string;
 		subtitle?: string;
 		info?: Collection;
-		filter?: Filter;
+		filterUser?: Filter;
 		search?: string;
 	}>(),
 	{
 		showSelect: 'multiple',
-	}
+	},
 );
 
 const emit = defineEmits(['update:selection', 'update:limit', 'update:size', 'update:sort', 'update:width']);
@@ -65,29 +63,31 @@ const mainElement = inject<Ref<Element | undefined>>('main-element');
 
 const layoutElement = ref<HTMLElement>();
 
-const { width } = useElementSize(layoutElement);
+const { width: innerWidth } = useElementSize(layoutElement);
 
 const { sizes: pageSizes, selected: selectedSize } = usePageSize<string>(
 	[25, 50, 100, 250, 500, 1000],
 	(value) => String(value),
-	props.limit
+	props.limit,
 );
 
-limitWritable.value = selectedSize;
+if (limitWritable.value !== selectedSize) {
+	limitWritable.value = selectedSize;
+}
 
 watch(
 	() => props.page,
-	() => mainElement!.value?.scrollTo({ top: 0, behavior: 'smooth' })
+	() => mainElement!.value?.scrollTo({ top: 0, behavior: 'smooth' }),
 );
 
-watch(width, () => {
-	emit('update:width', width.value);
+watch(innerWidth, (value) => {
+	emit('update:width', value);
 });
 </script>
 
 <template>
 	<div ref="layoutElement" class="layout-cards" :style="{ '--size': size * 40 + 'px' }">
-		<template v-if="loading || itemCount! > 0">
+		<template v-if="loading || ((itemCount ?? 0) > 0 && !error)">
 			<cards-header
 				v-model:size="sizeWritable"
 				v-model:selection="selectionWritable"
@@ -139,20 +139,9 @@ watch(width, () => {
 			</div>
 		</template>
 
-		<v-info v-else-if="error" type="danger" :title="t('unexpected_error')" icon="error" center>
-			{{ t('unexpected_error_copy') }}
-
-			<template #append>
-				<v-error :error="error" />
-
-				<v-button small class="reset-preset" @click="resetPresetAndRefresh">
-					{{ t('reset_page_preferences') }}
-				</v-button>
-			</template>
-		</v-info>
-
-		<slot v-else-if="itemCount === 0 && (filter || search)" name="no-results" />
-		<slot v-else-if="itemCount === 0" name="no-items" />
+		<slot v-else-if="error" name="error" :error="error" :reset="resetPresetAndRefresh" />
+		<slot v-else-if="itemCount === 0 && (filterUser || search)" name="no-results" />
+		<slot v-else-if="totalCount === 0" name="no-items" />
 	</div>
 </template>
 
@@ -198,9 +187,5 @@ watch(width, () => {
 			color: var(--theme--foreground);
 		}
 	}
-}
-
-.reset-preset {
-	margin-top: 24px;
 }
 </style>

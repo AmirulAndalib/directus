@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import api from '@/api';
-import { usePermissionsStore } from '@/stores/permissions';
+import { useCollectionPermissions } from '@/composables/use-permissions';
 import { useServerStore } from '@/stores/server';
 import { getPublicURL } from '@/utils/get-root-path';
 import { notify } from '@/utils/notify';
@@ -26,9 +26,10 @@ const props = defineProps<{
 	layoutQuery?: LayoutQuery;
 	filter?: Filter;
 	search?: string;
+	onDownload?: () => Promise<void>;
 }>();
 
-const emit = defineEmits(['refresh', 'download']);
+const emit = defineEmits(['refresh']);
 
 const { t, n, te } = useI18n();
 
@@ -48,6 +49,8 @@ const fileExtension = computed(() => {
 
 const { primaryKeyField, fields, info: collectionInfo } = useCollection(collection);
 
+const { createAllowed } = useCollectionPermissions(collection);
+
 const { info } = useServerStore();
 
 const queryLimitMax = info.queryLimit === undefined || info.queryLimit.max === -1 ? Infinity : info.queryLimit.max;
@@ -57,7 +60,8 @@ const exportSettings = reactive({
 	limit: props.layoutQuery?.limit ?? defaultLimit,
 	filter: props.filter,
 	search: props.search,
-	fields: props.layoutQuery?.fields ?? fields.value?.map((field) => field.field),
+	fields:
+		props.layoutQuery?.fields ?? fields.value?.filter((field) => field.type !== 'alias').map((field) => field.field),
 	sort: `${primaryKeyField.value?.field ?? ''}`,
 });
 
@@ -65,9 +69,9 @@ watch(
 	fields,
 	() => {
 		if (props.layoutQuery?.fields) return;
-		exportSettings.fields = fields.value?.map((field) => field.field);
+		exportSettings.fields = fields.value?.filter((field) => field.type !== 'alias').map((field) => field.field);
 	},
-	{ immediate: true }
+	{ immediate: true },
 );
 
 watch(
@@ -87,7 +91,7 @@ watch(
 			}
 		}
 	},
-	{ immediate: true }
+	{ immediate: true },
 );
 
 watch(
@@ -96,7 +100,7 @@ watch(
 		exportSettings.filter = filter;
 		exportSettings.search = search;
 	},
-	{ immediate: true }
+	{ immediate: true },
 );
 
 const format = ref('csv');
@@ -161,7 +165,7 @@ watch(
 		) {
 			exportSettings.limit = Math.round(exportSettings.limit);
 		}
-	}
+	},
 );
 
 const exportCount = computed(() => {
@@ -186,7 +190,7 @@ watch(
 			lockedToFiles.value = null;
 		}
 	},
-	{ immediate: true }
+	{ immediate: true },
 );
 
 watch(primaryKeyField, (newVal) => {
@@ -275,8 +279,8 @@ function useUpload() {
 			notify({
 				title: t('import_data_success', { filename: file.name }),
 			});
-		} catch (err: any) {
-			const code = err?.response?.data?.errors?.[0]?.extensions?.code;
+		} catch (error: any) {
+			const code = error?.response?.data?.errors?.[0]?.extensions?.code;
 
 			notify({
 				title: te(`errors.${code}`) ? t(`errors.${code}`) : t('import_data_error'),
@@ -284,7 +288,7 @@ function useUpload() {
 			});
 
 			if (code === 'INTERNAL_SERVER_ERROR') {
-				unexpectedError(err);
+				unexpectedError(error);
 			}
 		} finally {
 			uploading.value = false;
@@ -309,7 +313,6 @@ function exportDataLocal() {
 	const url = getPublicURL() + endpoint.substring(1);
 
 	const params: Record<string, unknown> = {
-		access_token: (api.defaults.headers.common['Authorization'] as string).substring(7),
 		export: format.value,
 	};
 
@@ -352,16 +355,12 @@ async function exportDataFiles() {
 			type: 'success',
 			icon: 'file_download',
 		});
-	} catch (err: any) {
-		unexpectedError(err);
+	} catch (error) {
+		unexpectedError(error);
 	} finally {
 		exporting.value = false;
 	}
 }
-
-const { hasPermission } = usePermissionsStore();
-
-const createAllowed = computed<boolean>(() => hasPermission(collection.value, 'create'));
 </script>
 
 <template>
@@ -400,10 +399,11 @@ const createAllowed = computed<boolean>(() => hasPermission(collection.value, 'c
 								</span>
 							</template>
 							<template #append>
-								<template v-if="file">
-									<v-icon v-tooltip="t('deselect')" class="deselect" name="close" @click.stop="clearFileInput" />
-								</template>
-								<v-icon v-else name="attach_file" />
+								<div class="item-actions">
+									<v-remove v-if="file" deselect @action="clearFileInput" />
+
+									<v-icon v-else name="attach_file" />
+								</div>
 							</template>
 						</v-input>
 					</template>
@@ -424,9 +424,12 @@ const createAllowed = computed<boolean>(() => hasPermission(collection.value, 'c
 				</v-button>
 
 				<button
-					v-tooltip.bottom="t('presentation_text_values_cannot_be_reimported')"
+					v-tooltip.bottom="
+						!!onDownload ? t('presentation_text_values_cannot_be_reimported') : t('download_page_as_csv_unsupported')
+					"
 					class="download-local"
-					@click="$emit('download')"
+					:disabled="!onDownload"
+					@click="onDownload"
 				>
 					{{ t('download_page_as_csv') }}
 				</button>
@@ -593,11 +596,15 @@ const createAllowed = computed<boolean>(() => hasPermission(collection.value, 'c
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/mixins/form-grid';
+@use '@/styles/mixins';
+
+.item-actions {
+	@include mixins.list-interface-item-actions;
+}
 
 .fields,
 .export-fields {
-	@include form-grid;
+	@include mixins.form-grid;
 
 	.v-divider {
 		grid-column: 1 / span 2;
@@ -605,7 +612,7 @@ const createAllowed = computed<boolean>(() => hasPermission(collection.value, 'c
 }
 
 .fields {
-	--form-vertical-gap: 24px;
+	--theme--form--row-gap: 24px;
 
 	.type-label {
 		font-size: 1rem;
@@ -613,8 +620,8 @@ const createAllowed = computed<boolean>(() => hasPermission(collection.value, 'c
 }
 
 .export-fields {
-	--folder-picker-background-color: var(--background-subdued);
-	--folder-picker-color: var(--background-normal);
+	--folder-picker-background-color: var(--theme--background-subdued);
+	--folder-picker-color: var(--theme--background-normal);
 
 	margin-top: 24px;
 	padding: var(--content-padding);
@@ -635,14 +642,14 @@ const createAllowed = computed<boolean>(() => hasPermission(collection.value, 'c
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
-	height: var(--input-height);
-	padding: var(--input-padding);
-	padding-top: 0px;
-	padding-bottom: 0px;
+	height: var(--theme--form--field--input--height);
+	padding: var(--theme--form--field--input--padding);
+	padding-top: 0;
+	padding-bottom: 0;
 	color: var(--white);
 	background-color: var(--theme--primary);
-	border: var(--border-width) solid var(--theme--primary);
-	border-radius: var(--border-radius);
+	border: var(--theme--border-width) solid var(--theme--primary);
+	border-radius: var(--theme--border-radius);
 
 	.type-text {
 		display: flex;
@@ -666,8 +673,8 @@ const createAllowed = computed<boolean>(() => hasPermission(collection.value, 'c
 	height: 40px;
 	margin-left: -8px;
 	overflow: hidden;
-	background-color: var(--background-normal);
-	border-radius: var(--border-radius);
+	background-color: var(--theme--background-normal);
+	border-radius: var(--theme--border-radius);
 
 	&.has-file {
 		background-color: var(--theme--primary-background);
@@ -706,7 +713,7 @@ const createAllowed = computed<boolean>(() => hasPermission(collection.value, 'c
 }
 
 :deep(.v-button) .button:disabled {
-	--v-button-background-color-disabled: var(--background-normal-alt);
+	--v-button-background-color-disabled: var(--theme--background-accent);
 }
 
 .download-local {
@@ -719,6 +726,11 @@ const createAllowed = computed<boolean>(() => hasPermission(collection.value, 'c
 
 	&:hover {
 		color: var(--theme--primary);
+	}
+
+	&:disabled {
+		color: var(--theme--foreground-subdued);
+		cursor: not-allowed;
 	}
 }
 </style>

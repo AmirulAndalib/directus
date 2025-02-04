@@ -18,7 +18,7 @@ import { computed, toRefs } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Draggable from 'vuedraggable';
 import InputGroup from './input-group.vue';
-import { fieldToFilter, getComparator, getField, getNodeName } from './utils';
+import { fieldHasFunction, fieldToFilter, getComparator, getField, getNodeName } from './utils';
 
 type FilterInfo = {
 	id: number;
@@ -87,7 +87,7 @@ const filterInfo = computed<(FilterInfo | FilterInfoField)[]>({
 	set(newVal) {
 		emit(
 			'update:filter',
-			newVal.map((val) => val.node)
+			newVal.map((val) => val.node),
 		);
 	},
 });
@@ -98,7 +98,7 @@ function getFieldPreview(node: Record<string, any>) {
 	const fieldParts = fieldKey.split('.');
 
 	const fieldNames = fieldParts.map((fieldKey, index) => {
-		const hasFunction = fieldKey.includes('(') && fieldKey.includes(')');
+		const hasFunction = fieldHasFunction(fieldKey);
 
 		let key = fieldKey;
 		let functionName;
@@ -238,7 +238,7 @@ function replaceNode(index: number, newFilter: Filter) {
 function getCompareOptions(name: string) {
 	let type: Type;
 
-	if (name.includes('(') && name.includes(')')) {
+	if (fieldHasFunction(name)) {
 		const functionName = name.split('(')[0] as FieldFunction;
 		type = getOutputTypeForFunction(functionName);
 	} else {
@@ -263,7 +263,15 @@ function getCompareOptions(name: string) {
 
 function isExistingField(node: Record<string, any>): boolean {
 	if (!props.collection) return false;
-	const fieldKey = getField(node);
+	let fieldKey = getField(node);
+
+	if (fieldHasFunction(fieldKey)) {
+		const keyParts = fieldKey.split('.');
+		// the function is always in the last key part
+		const { field } = extractFieldFromFunction(keyParts.at(-1)!);
+		fieldKey = [...keyParts.slice(0, -1), field].join('.');
+	}
+
 	const field = fieldsStore.getField(props.collection, fieldKey);
 	return !!field;
 }
@@ -279,7 +287,7 @@ function isExistingField(node: Record<string, any>): boolean {
 		:group="{ name: 'g1' }"
 		:item-key="getIndex"
 		:swap-threshold="0.3"
-		force-fallback
+		v-bind="{ 'force-fallback': true }"
 		@change="$emit('change')"
 	>
 		<template #item="{ element, index }">
@@ -343,7 +351,7 @@ function isExistingField(node: Record<string, any>): boolean {
 							<span class="text">
 								{{
 									`— ${filterInfo[index].name === '_and' ? t('interfaces.filter.all') : t('interfaces.filter.any')} ${t(
-										'interfaces.filter.of_the_following'
+										'interfaces.filter.of_the_following',
 									)}`
 								}}
 							</span>
@@ -384,8 +392,8 @@ function isExistingField(node: Record<string, any>): boolean {
 	margin-bottom: 8px;
 	padding: 2px 6px;
 	padding-right: 8px;
-	background-color: var(--theme--background);
-	border: var(--border-width) solid var(--border-subdued);
+	background-color: var(--theme--form--field--input--background);
+	border: var(--theme--border-width) solid var(--theme--border-color-subdued);
 	border-radius: 100px;
 	transition: border-color var(--fast) var(--transition);
 
@@ -428,6 +436,7 @@ function isExistingField(node: Record<string, any>): boolean {
 	.plain-name {
 		display: inline-block;
 		margin-right: 8px;
+		white-space: nowrap;
 	}
 
 	.name {
@@ -437,7 +446,7 @@ function isExistingField(node: Record<string, any>): boolean {
 	&.raw-field-names {
 		.plain-name,
 		.name {
-			font-family: var(--theme--font-family-monospace);
+			font-family: var(--theme--fonts--monospace--font-family);
 		}
 	}
 
@@ -455,7 +464,7 @@ function isExistingField(node: Record<string, any>): boolean {
 			z-index: -1;
 			width: calc(100% + 8px);
 			height: 100%;
-			background-color: var(--background-normal);
+			background-color: var(--theme--background-normal);
 			border-radius: 6px;
 			opacity: 0;
 			transition: opacity var(--fast) var(--transition);
@@ -490,7 +499,7 @@ function isExistingField(node: Record<string, any>): boolean {
 	}
 
 	&:hover {
-		border-color: var(--border-normal);
+		border-color: var(--theme--form--field--input--border-color);
 
 		.delete,
 		&:hover {
@@ -532,7 +541,7 @@ function isExistingField(node: Record<string, any>): boolean {
 .group :deep(.sortable-ghost) {
 	.node .header {
 		background-color: var(--theme--primary-background);
-		border-color: var(--theme--primary);
+		border-color: var(--theme--form--field--input--border-color-focus);
 
 		> * {
 			opacity: 0;

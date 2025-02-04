@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { readableMimeType } from '@/utils/readable-mime-type';
+import { getAssetUrl } from '@/utils/get-asset-url';
 import { computed, ref } from 'vue';
 
 type File = {
@@ -14,7 +15,7 @@ const props = withDefaults(
 	}>(),
 	{
 		value: null,
-	}
+	},
 );
 
 const previewEl = ref<Element>();
@@ -27,9 +28,9 @@ const fileExtension = computed(() => {
 
 const imageThumbnail = computed(() => {
 	if (!props.value) return null;
-	if (props.value.type?.includes('svg')) return '/assets/' + props.value.id;
+	if (props.value.type?.includes('svg')) return getAssetUrl(props.value.id);
 	if (props.value.type?.includes('image') === false) return null;
-	return `/assets/${props.value.id}?key=system-small-cover`;
+	return getAssetUrl(`${props.value.id}?key=system-small-cover`);
 });
 </script>
 
@@ -54,7 +55,7 @@ const imageThumbnail = computed(() => {
 img {
 	height: 100%;
 	object-fit: cover;
-	border-radius: var(--border-radius);
+	border-radius: var(--theme--border-radius);
 	aspect-ratio: 1;
 }
 
@@ -67,8 +68,8 @@ img {
 	justify-content: center;
 	height: 100%;
 	overflow: hidden;
-	background-color: var(--background-normal);
-	border-radius: var(--border-radius);
+	background-color: var(--theme--background-normal);
+	border-radius: var(--theme--border-radius);
 	aspect-ratio: 1;
 
 	&.has-file {

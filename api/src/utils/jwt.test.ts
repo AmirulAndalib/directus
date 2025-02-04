@@ -34,7 +34,7 @@ const InvalidTokenCases = {
 Object.entries(InvalidTokenCases).forEach(([title, token]) =>
 	test(`Throws InvalidTokenError - ${title}`, () => {
 		expect(() => verifyJWT(token, secret)).toThrow(InvalidTokenError);
-	})
+	}),
 );
 
 test(`Throws ServiceUnavailableError for unexpected error from jsonwebtoken`, () => {
@@ -62,12 +62,12 @@ test('Returns the payload of an access token', () => {
 	const token = jwt.sign(payload, secret, options);
 	const result = verifyAccessJWT(token, secret);
 
-	expect(result).toEqual({
+	expect(result).toStrictEqual({
 		id: 1,
 		role: 1,
 		app_access: true,
 		admin_access: true,
-		share: undefined,
-		share_scope: undefined,
+		iss: 'directus',
+		iat: expect.any(Number),
 	});
 });

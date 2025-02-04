@@ -35,9 +35,11 @@ const props = defineProps<{
 const saving = ref(false);
 
 useShortcut('meta+s', () => {
-	// If currentOperation exists, the operation edit drawer is opened and we should prevent the
-	// saving of the top level flow from the shortcut #19104
-	if (unref(currentOperation)) return;
+	/*
+	 * Prevent saving of the Flow via shortcut when the  "Create Operation",
+	 * "Edit Operation" or "Edit Trigger" drawer is opened
+	 */
+	if (props.operationId || unref(triggerDetailOpen)) return;
 
 	saveChanges();
 });
@@ -66,11 +68,6 @@ const flow = computed<FlowRaw | undefined>({
 
 const loading = ref(false);
 
-const exitingOperationKeys = computed(() => [
-	...(flow.value?.operations || []).map((operation) => operation.key),
-	...stagedPanels.value.filter((stagedPanel) => stagedPanel.key !== undefined).map((stagedPanel) => stagedPanel.key!),
-]);
-
 const editMode = ref(flow.value?.operations.length === 0 || props.operationId !== undefined);
 
 const confirmDelete = ref(false);
@@ -84,8 +81,8 @@ async function deleteFlow() {
 	try {
 		await api.delete(`/flows/${flow.value.id}`);
 		await flowsStore.hydrate();
-	} catch (err: any) {
-		unexpectedError(err);
+	} catch (error) {
+		unexpectedError(error);
 	} finally {
 		deleting.value = false;
 		router.push('/settings/flows');
@@ -103,7 +100,7 @@ const hoveredPanelID = ref<string | null>(null);
 
 const panels = computed(() => {
 	const savedPanels = (flow.value?.operations || []).filter(
-		(panel) => panelsToBeDeleted.value.includes(panel.id) === false
+		(panel) => panelsToBeDeleted.value.includes(panel.id) === false,
 	);
 
 	const raw = [
@@ -156,6 +153,13 @@ const currentOperation = computed(() => {
 	});
 });
 
+const existingOperationKeys = computed(() => [
+	...(flow.value?.operations || [])
+		.filter((operation) => !panelsToBeDeleted.value.includes(operation.id))
+		.map((operation) => operation.key),
+	...stagedPanels.value.filter((stagedPanel) => stagedPanel.key !== undefined).map((stagedPanel) => stagedPanel.key!),
+]);
+
 const parentPanels = computed(() => {
 	const parents = panels.value.reduce<Record<string, ParentInfo>>((acc, panel) => {
 		if (panel.resolve) {
@@ -180,7 +184,7 @@ const parentPanels = computed(() => {
 	return Object.fromEntries(
 		Object.entries(parents).map(([key, value]) => {
 			return [key, { ...value, loner: !connectedToTrigger(key) }];
-		})
+		}),
 	);
 
 	function connectedToTrigger(id: string) {
@@ -301,7 +305,7 @@ async function saveChanges() {
 		stagedFlow.value = {};
 		editMode.value = false;
 	} catch (error) {
-		unexpectedError(error as Error);
+		unexpectedError(error);
 	} finally {
 		saving.value = false;
 	}
@@ -390,32 +394,32 @@ function editPanel(panel: AppTile) {
 	else router.push(`/settings/flows/${props.primaryKey}/${panel.id}`);
 }
 
-// ------------- Move Panel To ------------- //
+// ------------- Copy Panel To ------------- //
 
-const movePanelID = ref<string | undefined>();
-const movePanelTo = ref<string | undefined>();
-const movePanelLoading = ref(false);
+const copyPanelId = ref<string | undefined>();
+const copyPanelTo = ref<string | undefined>();
+const copyPanelLoading = ref(false);
 
-const movePanelChoices = computed(() => flowsStore.flows.filter((flow) => flow.id !== props.primaryKey));
+const copyPanelChoices = computed(() => flowsStore.flows.filter((flow) => flow.id !== props.primaryKey));
 
-async function movePanel() {
-	movePanelLoading.value = true;
+async function copyPanel() {
+	copyPanelLoading.value = true;
 
-	const currentPanel = panels.value.find((panel) => panel.id === movePanelID.value);
+	const currentPanel = panels.value.find((panel) => panel.id === copyPanelId.value);
 
 	try {
 		await api.post(`/operations`, {
-			...omit(currentPanel, ['id']),
-			flow: movePanelTo.value,
+			...omit(currentPanel, ['id', 'date_created', 'user_created', 'resolve', 'reject']),
+			flow: copyPanelTo.value,
 		});
 
 		await flowsStore.hydrate();
 
-		movePanelID.value = undefined;
-	} catch (err: any) {
-		unexpectedError(err);
+		copyPanelId.value = undefined;
+	} catch (error) {
+		unexpectedError(error);
 	} finally {
-		movePanelLoading.value = false;
+		copyPanelLoading.value = false;
 	}
 }
 
@@ -441,9 +445,9 @@ function arrowStop() {
 	}
 
 	// make sure only one arrow can be connected to an attachment
-	if (nearPanel && parentPanels.value[nearPanel]) {
-		const currentlyConnected = parentPanels.value[nearPanel];
+	const currentlyConnected = nearPanel && parentPanels.value[nearPanel];
 
+	if (currentlyConnected) {
 		if (currentlyConnected.id === '$trigger') {
 			flow.value = merge({}, flow.value, { operation: null });
 		} else {
@@ -471,11 +475,11 @@ function arrowStop() {
 }
 
 function isLoop(currentId: string, attachTo: string) {
-	let parent = currentId;
+	let parent: string | undefined = currentId;
 
 	while (parent !== undefined) {
 		if (parent === attachTo) return true;
-		parent = parentPanels.value[parent]?.id ?? undefined;
+		parent = parentPanels.value[parent]?.id;
 	}
 
 	return false;
@@ -485,7 +489,7 @@ function getNearAttachment(pos: Vector2) {
 	for (const panel of panels.value) {
 		const attachmentPos = new Vector2(
 			(panel.x - 1) * 20 + ATTACHMENT_OFFSET.x,
-			(panel.y - 1) * 20 + ATTACHMENT_OFFSET.y
+			(panel.y - 1) * 20 + ATTACHMENT_OFFSET.y,
 		);
 
 		if (attachmentPos.distanceTo(pos) <= 40) return panel.id as string;
@@ -499,7 +503,7 @@ function getNearAttachment(pos: Vector2) {
 const hasEdits = computed(() => stagedPanels.value.length > 0 || panelsToBeDeleted.value.length > 0);
 
 const { confirmLeave, leaveTo } = useEditsGuard(hasEdits, {
-	ignorePrefix: computed(() => `/settings/flows/${props.primaryKey}/`),
+	ignorePrefix: computed(() => `/settings/flows/${props.primaryKey}`),
 });
 
 const confirmCancel = ref(false);
@@ -623,7 +627,7 @@ function discardAndLeave() {
 						:subdued="flow.status === 'inactive'"
 						@create="createPanel"
 						@edit="editPanel"
-						@move="movePanelID = $event"
+						@move="copyPanelId = $event"
 						@update="stageOperationEdits"
 						@delete="deletePanel"
 						@duplicate="duplicatePanel"
@@ -679,22 +683,22 @@ function discardAndLeave() {
 			</v-card>
 		</v-dialog>
 
-		<v-dialog :model-value="!!movePanelID" @update:model-value="movePanelID = undefined" @esc="movePanelID = undefined">
+		<v-dialog :model-value="!!copyPanelId" @update:model-value="copyPanelId = undefined" @esc="copyPanelId = undefined">
 			<v-card>
 				<v-card-title>{{ t('copy_to') }}</v-card-title>
 
 				<v-card-text>
-					<v-notice v-if="movePanelChoices.length === 0">
+					<v-notice v-if="copyPanelChoices.length === 0">
 						{{ t('no_other_flows_copy') }}
 					</v-notice>
-					<v-select v-else v-model="movePanelTo" :items="movePanelChoices" item-text="name" item-value="id" />
+					<v-select v-else v-model="copyPanelTo" :items="copyPanelChoices" item-text="name" item-value="id" />
 				</v-card-text>
 
 				<v-card-actions>
-					<v-button secondary @click="movePanelID = undefined">
+					<v-button secondary @click="copyPanelId = undefined">
 						{{ t('cancel') }}
 					</v-button>
-					<v-button :loading="movePanelLoading" :disabled="movePanelChoices.length === 0" @click="movePanel">
+					<v-button :loading="copyPanelLoading" :disabled="copyPanelChoices.length === 0" @click="copyPanel">
 						{{ t('copy') }}
 					</v-button>
 				</v-card-actions>
@@ -703,7 +707,7 @@ function discardAndLeave() {
 
 		<router-view
 			:operation="currentOperation"
-			:existing-operation-keys="exitingOperationKeys"
+			:existing-operation-keys="existingOperationKeys"
 			:flow="flow"
 			@save="stageOperation"
 			@cancel="cancelOperation"

@@ -9,7 +9,7 @@ export type OperationContext = ApiExtensionContext & {
 
 export type OperationHandler<Options = Record<string, unknown>> = (
 	options: Options,
-	context: OperationContext
+	context: OperationContext,
 ) => unknown | Promise<unknown> | void;
 
 export interface OperationAppConfig {
@@ -21,11 +21,15 @@ export interface OperationAppConfig {
 	overview:
 		| ((
 				options: Record<string, any>,
-				{ flow }: { flow: FlowRaw }
+				{ flow }: { flow: FlowRaw },
 		  ) => { label: string; text: string; copyable?: boolean }[])
 		| ComponentOptions
 		| null;
-	options: DeepPartial<Field>[] | ((options: Record<string, any>) => DeepPartial<Field>[]) | ComponentOptions | null;
+	options:
+		| DeepPartial<Field>[]
+		| ((options: Record<string, any>) => DeepPartial<Field>[])
+		| Exclude<ComponentOptions, any>
+		| null;
 }
 
 export interface OperationApiConfig<Options = Record<string, unknown>> {

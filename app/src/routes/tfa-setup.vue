@@ -4,6 +4,7 @@ import { router } from '@/router';
 import { useUserStore } from '@/stores/user';
 import { useAppStore } from '@directus/stores';
 import { User } from '@directus/types';
+import { useHead } from '@unhead/vue';
 import { nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -29,7 +30,7 @@ watch(
 			await nextTick();
 			(inputOTP.value.$el as HTMLElement).querySelector('input')!.focus();
 		}
-	}
+	},
 );
 
 async function enable() {
@@ -42,6 +43,10 @@ async function enable() {
 		(inputOTP.value.$el as HTMLElement).querySelector('input')!.focus();
 	}
 }
+
+useHead({
+	title: t('tfa_setup'),
+});
 </script>
 
 <template>
@@ -111,7 +116,7 @@ h1 {
 	display: block;
 	margin: 0 auto 16px;
 	color: var(--theme--foreground-subdued);
-	font-family: var(--theme--font-family-monospace);
+	font-family: var(--theme--fonts--monospace--font-family);
 	letter-spacing: 2.6px;
 	text-align: center;
 }

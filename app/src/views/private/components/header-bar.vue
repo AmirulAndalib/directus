@@ -13,7 +13,7 @@ withDefaults(
 	{
 		primaryActionIcon: 'menu',
 		shadow: true,
-	}
+	},
 );
 
 defineEmits<{
@@ -27,9 +27,10 @@ const collapsed = ref(false);
 
 const observer = new IntersectionObserver(
 	([e]) => {
-		collapsed.value = e.boundingClientRect.y === -1;
+		if (!e) return;
+		collapsed.value = e.boundingClientRect.y < 0;
 	},
-	{ threshold: [1] }
+	{ threshold: [1] },
 );
 
 onMounted(() => {
@@ -91,12 +92,15 @@ onUnmounted(() => {
 	align-items: center;
 	justify-content: flex-start;
 	width: 100%;
-	height: var(--header-bar-height);
+	height: calc(var(--header-bar-height) + var(--theme--header--border-width));
 	margin: 0;
 	padding: 0 10px;
 	background-color: var(--theme--header--background);
-	box-shadow: 0;
-	transition: box-shadow var(--medium) var(--transition), margin var(--fast) var(--transition);
+	box-shadow: none;
+	transition:
+		box-shadow var(--medium) var(--transition),
+		margin var(--fast) var(--transition);
+	border-bottom: var(--theme--header--border-width) solid var(--theme--header--border-color);
 
 	.nav-toggle {
 		@media (min-width: 960px) {
@@ -116,6 +120,7 @@ onUnmounted(() => {
 		position: relative;
 		display: flex;
 		align-items: center;
+		gap: 16px;
 		width: 100%;
 		max-width: calc(100% - 12px - 44px - 120px - 12px - 8px);
 		height: 100%;
@@ -167,6 +172,7 @@ onUnmounted(() => {
 				white-space: nowrap;
 				text-overflow: ellipsis;
 				font-family: var(--theme--header--title--font-family);
+				font-weight: var(--theme--header--title--font-weight);
 			}
 
 			:deep(.type-title) {
@@ -191,7 +197,7 @@ onUnmounted(() => {
 
 	&.collapsed.shadow,
 	&.small.shadow {
-		box-shadow: var(--header-shadow);
+		box-shadow: var(--theme--header--box-shadow);
 
 		.title-container {
 			.headline {

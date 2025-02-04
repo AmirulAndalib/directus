@@ -202,7 +202,7 @@ onMounted(() => {
 
 <style>
 #split-content {
-	background-color: var(--background-subdued);
+	background-color: var(--theme--background-subdued);
 }
 </style>
 
@@ -212,10 +212,6 @@ onMounted(() => {
 	height: 100%;
 
 	.header {
-		.v-button.secondary {
-			--v-button-background-color: var(--background-subdued);
-		}
-
 		width: 100%;
 		color: var(--foreground-inverted);
 		background-color: var(--background-inverted);
@@ -225,6 +221,10 @@ onMounted(() => {
 		z-index: 10;
 		gap: 8px;
 		padding: 0px 8px;
+
+		.v-button.secondary {
+			--v-button-background-color: var(--theme--background-subdued);
+		}
 
 		.url {
 			color: var(--theme--foreground-subdued);

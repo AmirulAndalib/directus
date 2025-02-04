@@ -6,7 +6,7 @@ pageClass: page-reference
 
 # Extensions
 
-> The extensions endpoints are used by the Admin App to retrieve what extensions to install.
+> The extensions endpoints are used by the Data Studio to retrieve what extensions to install.
 > [Learn more about Extensions](/user-guide/overview/glossary#extensions).
 
 ## The Extension Object
@@ -35,13 +35,20 @@ Type of the extension. One of `'interface'`, `'display'`, `'layout'`, `'module'`
 `local` **boolean**\
 Whether the extension exists in the local extensions folder or is loaded from `node_modules`.
 
+`version` **string**\
+The currently loaded version of the plugin as defined by its `package.json`.
+
+`partial` **boolean**\
+Whether or not a bundles entries can be individually disabled. This is applicable to bundle type extensions only.
+
 ```json
 {
   "name": "my-bundle-operation",
   "bundle": "directus-extension-my-bundle",
   "schema": {
     "type": "operation",
-    "local": true
+    "local": true,
+    "version": "1.0.0"
   },
   "meta": {
     "enabled": true
@@ -134,10 +141,10 @@ Update an existing extension.
 
 ### Request
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
-`PATCH /extension/:bundleOrName/:name?`
+`PATCH /extensions/:bundleOrName/:name?`
 
 Provide a partial [extension object](#the-extension-object) as the body of your request.
 
@@ -180,7 +187,7 @@ Returns the [extension object](#the-extension-object) for the updated extension.
 
 ### Example
 
-<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" label="API">
+<SnippetToggler :choices="['REST', 'GraphQL', 'SDK']" group="api">
 <template #rest>
 
 `PATCH /extensions/my-bundle/draw-interface`

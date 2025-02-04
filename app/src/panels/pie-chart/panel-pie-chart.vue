@@ -8,6 +8,12 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { monoThemeGenerator } from './color-generator';
 
+type ConditionalFillFormat = {
+	operator: StringConditionalFillOperators;
+	color: string;
+	value: number;
+};
+
 const props = withDefaults(
 	defineProps<{
 		showHeader?: boolean;
@@ -19,14 +25,10 @@ const props = withDefaults(
 		function?: PanelFunction;
 		legend?: 'none' | 'right' | 'bottom';
 		showLabels?: boolean;
-		color?: string;
+		color?: string | null;
 		height: number;
 		width: number;
-		conditionalFill?: {
-			operator: StringConditionalFillOperators;
-			color: string;
-			value: number;
-		}[];
+		conditionalFill?: ConditionalFillFormat[] | null;
 	}>(),
 	{
 		showHeader: false,
@@ -36,9 +38,9 @@ const props = withDefaults(
 		function: 'count',
 		legend: 'none',
 		showLabels: false,
-		color: cssVar('--primary'),
+		color: cssVar('--theme--primary'),
 		conditionalFill: () => [],
-	}
+	},
 );
 
 const { n } = useI18n();
@@ -72,7 +74,7 @@ watch(
 		chart.value?.destroy();
 		setupChart();
 	},
-	{ deep: true }
+	{ deep: true },
 );
 
 onMounted(fetchData);
@@ -106,7 +108,7 @@ async function setupChart() {
 
 	const total = series.reduce((acc, val) => acc + val, 0);
 
-	const baseColors: string[] = monoThemeGenerator(props.color ? props.color : cssVar('--primary'), labels.length);
+	const baseColors: string[] = monoThemeGenerator(props.color || cssVar('--theme--primary'), labels.length);
 
 	const colors = baseColors.map((baseColor, index) => formatColor(baseColor, series[index]));
 
@@ -134,7 +136,7 @@ async function setupChart() {
 			},
 			type: props.donut ? 'donut' : 'pie',
 			height: size,
-			fontFamily: 'var(--theme--font-family-sans-serif)',
+			fontFamily: 'var(--theme--fonts--sans--font-family)',
 			foreColor: 'var(--theme--foreground-subdued)',
 			selection: {
 				enabled: false,
@@ -147,7 +149,7 @@ async function setupChart() {
 		labels,
 		colors,
 		grid: {
-			borderColor: 'var(--border-subdued)',
+			borderColor: 'var(--theme--border-color-subdued)',
 			padding: {
 				top,
 				bottom,
@@ -216,8 +218,8 @@ function getPercentage(value: number) {
 		: n(value);
 }
 
-function formatColor(color: string | number, value: string | number) {
-	if (isNil(value) || props.conditionalFill.length === 0) return color;
+function formatColor(color: string | number, value?: string | number) {
+	if (isNil(value) || !props.conditionalFill?.length) return color;
 	let formattedColor = color;
 
 	for (const format of props.conditionalFill) {
@@ -228,10 +230,7 @@ function formatColor(color: string | number, value: string | number) {
 	return formattedColor;
 }
 
-function checkMatchingConditionalFill(
-	value: string | number,
-	format: (typeof props)['conditionalFill'][number]
-): boolean {
+function checkMatchingConditionalFill(value: string | number, format: ConditionalFillFormat): boolean {
 	let baseValue: string | number = value;
 	let compareValue: string | number = format.value;
 
@@ -283,16 +282,16 @@ function checkMatchingConditionalFill(
 
 <style>
 .apexcharts-tooltip.apexcharts-theme-light {
-	border-color: var(--border-normal) !important;
+	border-color: var(--theme--form--field--input--border-color) !important;
 }
 
 .apexcharts-tooltip.apexcharts-theme-light .apexcharts-tooltip-title {
-	border-color: var(--border-normal) !important;
+	border-color: var(--theme--form--field--input--border-color) !important;
 	margin-bottom: 0;
 	padding: 0 4px;
 	font-weight: 600 !important;
 	font-size: 10px !important;
-	background-color: var(--background-subdued) !important;
+	background-color: var(--theme--background-subdued) !important;
 }
 
 .apexcharts-tooltip-y-group {
@@ -302,7 +301,7 @@ function checkMatchingConditionalFill(
 }
 
 .apexcharts-tooltip-series-group {
-	background-color: var(--background-normal-alt) !important;
+	background-color: var(--theme--background-accent) !important;
 	padding: 0;
 }
 

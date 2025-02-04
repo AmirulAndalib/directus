@@ -29,7 +29,7 @@ const isExisting = computed(() => editing.value !== '+');
 const currentPrimaryKey = computed(() => fieldsStore.getPrimaryKeyFieldForCollection(collection.value!)?.field);
 
 const relatedPrimaryKey = computed(
-	() => fieldsStore.getPrimaryKeyFieldForCollection(relatedCollection.value)?.field ?? 'id'
+	() => fieldsStore.getPrimaryKeyFieldForCollection(relatedCollection.value)?.field ?? 'id',
 );
 </script>
 
@@ -181,12 +181,11 @@ const relatedPrimaryKey = computed(
 </template>
 
 <style lang="scss" scoped>
-@import '@/styles/mixins/form-grid';
-@import '@/styles/mixins/no-wrap';
+@use '@/styles/mixins';
 
 .grid {
-	--v-select-font-family: var(--theme--font-family-monospace);
-	--v-input-font-family: var(--theme--font-family-monospace);
+	--v-select-font-family: var(--theme--fonts--monospace--font-family);
+	--v-input-font-family: var(--theme--fonts--monospace--font-family);
 
 	position: relative;
 	display: grid;
@@ -220,7 +219,7 @@ const relatedPrimaryKey = computed(
 .type-label {
 	margin-bottom: 8px;
 
-	@include no-wrap;
+	@include mixins.no-wrap;
 }
 
 .v-divider {
@@ -228,7 +227,7 @@ const relatedPrimaryKey = computed(
 }
 
 .v-list {
-	--v-list-item-content-font-family: var(--theme--font-family-monospace);
+	--v-list-item-content-font-family: var(--theme--fonts--monospace--font-family);
 }
 
 .v-notice {
@@ -236,10 +235,10 @@ const relatedPrimaryKey = computed(
 }
 
 .relational-triggers {
-	--form-horizontal-gap: 12px;
-	--form-vertical-gap: 24px;
+	--theme--form--column-gap: 12px;
+	--theme--form--row-gap: 24px;
 
-	@include form-grid;
+	@include mixins.form-grid;
 
 	.v-divider {
 		margin-top: 48px;

@@ -25,10 +25,9 @@ const props = withDefaults(
 	}>(),
 	{
 		value: () => ({ key: null, collection: '' }),
-		disabled: false,
-		template: () => null,
-		filter: () => null,
-	}
+		template: null,
+		filter: null,
+	},
 );
 
 const { t } = useI18n();
@@ -94,8 +93,8 @@ async function getDisplayItem() {
 		});
 
 		displayItem.value = response.data.data?.[0] ?? null;
-	} catch (err: any) {
-		unexpectedError(err);
+	} catch (error) {
+		unexpectedError(error);
 	} finally {
 		loading.value = false;
 	}
@@ -118,12 +117,11 @@ function onSelection(selectedIds: (number | string)[] | null) {
 			</template>
 
 			<template #append>
-				<template v-if="displayItem">
-					<v-icon v-tooltip="t('deselect')" name="close" class="deselect" @click.stop="$emit('input', undefined)" />
-				</template>
-				<template v-else>
-					<v-icon class="expand" name="expand_more" />
-				</template>
+				<div class="item-actions">
+					<v-remove v-if="displayItem" deselect @action="value = null" />
+
+					<v-icon v-else class="expand" name="expand_more" />
+				</div>
 			</template>
 		</v-input>
 
@@ -139,6 +137,12 @@ function onSelection(selectedIds: (number | string)[] | null) {
 </template>
 
 <style lang="scss" scoped>
+@use '@/styles/mixins';
+
+.item-actions {
+	@include mixins.list-interface-item-actions;
+}
+
 .preview {
 	display: block;
 	flex-grow: 1;

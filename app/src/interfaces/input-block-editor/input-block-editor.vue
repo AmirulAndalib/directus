@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import api, { addTokenToURL } from '@/api';
+import api from '@/api';
 import { useCollectionsStore } from '@/stores/collections';
 import { unexpectedError } from '@/utils/unexpected-error';
 import EditorJS from '@editorjs/editorjs';
 import { cloneDeep, isEqual } from 'lodash';
 import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
+import { useBus } from './bus';
 import getTools from './tools';
 import { useFileHandler } from './use-file-handler';
+
+import './editorjs-overrides.css';
+
+// https://github.com/codex-team/editor.js/blob/057bf17a6fc2d5e05c662107918d7c3e943d077c/src/components/events/RedactorDomChanged.ts#L4
+const RedactorDomChanged = 'redactor dom changed';
 
 const props = withDefaults(
 	defineProps<{
@@ -21,14 +28,14 @@ const props = withDefaults(
 		font?: 'sans-serif' | 'monospace' | 'serif';
 	}>(),
 	{
-		disabled: false,
-		autofocus: false,
 		value: null,
 		bordered: true,
 		tools: () => ['header', 'nestedlist', 'code', 'image', 'paragraph', 'checklist', 'quote', 'underline'],
 		font: 'sans-serif',
-	}
+	},
 );
+
+const bus = useBus();
 
 const emit = defineEmits<{ input: [value: EditorJS.OutputData | null] }>();
 
@@ -45,18 +52,24 @@ const uploaderComponentElement = ref<HTMLElement>();
 const editorElement = ref<HTMLElement>();
 const haveFilesAccess = Boolean(collectionStore.getCollection('directus_files'));
 const haveValuesChanged = ref(false);
+const router = useRouter();
 
 const tools = getTools(
 	{
-		addTokenToURL,
 		baseURL: api.defaults.baseURL,
 		setFileHandler,
 		setCurrentPreview,
 		getUploadFieldElement: () => uploaderComponentElement,
 	},
 	props.tools,
-	haveFilesAccess
+	haveFilesAccess,
 );
+
+bus.on(async (event) => {
+	if (event.type === 'open-url') {
+		router.push(event.payload);
+	}
+});
 
 onMounted(async () => {
 	editorjsRef.value = new EditorJS({
@@ -70,7 +83,6 @@ onMounted(async () => {
 	});
 
 	await editorjsRef.value.isReady;
-	editorjsIsReady.value = true;
 
 	const sanitizedValue = sanitizeValue(props.value);
 
@@ -81,10 +93,17 @@ onMounted(async () => {
 	if (props.autofocus) {
 		editorjsRef.value.focus();
 	}
+
+	editorjsRef.value.on(RedactorDomChanged, () => {
+		emitValue(editorjsRef.value!);
+	});
+
+	editorjsIsReady.value = true;
 });
 
 onUnmounted(() => {
 	editorjsRef.value?.destroy();
+	bus.reset();
 });
 
 watch(
@@ -108,13 +127,13 @@ watch(
 			} else {
 				editorjsRef.value.clear();
 			}
-		} catch (err: any) {
-			unexpectedError(err);
+		} catch (error) {
+			unexpectedError(error);
 		}
-	}
+	},
 );
 
-async function emitValue(context: EditorJS.API) {
+async function emitValue(context: EditorJS.API | EditorJS) {
 	if (props.disabled || !context || !context.saver) return;
 
 	try {
@@ -130,8 +149,8 @@ async function emitValue(context: EditorJS.API) {
 		if (isEqual(result.blocks, props.value?.blocks)) return;
 
 		emit('input', result);
-	} catch (err: any) {
-		unexpectedError(err);
+	} catch (error) {
+		unexpectedError(error);
 	}
 }
 
@@ -176,10 +195,6 @@ function sanitizeValue(value: any): EditorJS.OutputData | null {
 	</div>
 </template>
 
-<style lang="scss">
-@import './editorjs-overrides.css';
-</style>
-
 <style lang="scss" scoped>
 .btn--default {
 	color: #fff !important;
@@ -194,36 +209,37 @@ function sanitizeValue(value: any): EditorJS.OutputData | null {
 
 .disabled {
 	color: var(--theme--form--field--input--foreground-subdued);
-	background-color: var(--background-subdued);
-	border-color: var(--border-normal);
+	background-color: var(--theme--form--field--input--background-subdued);
+	border-color: var(--theme--form--field--input--border-color);
 	pointer-events: none;
 }
 
 .bordered {
-	padding: var(--input-padding) 4px var(--input-padding) calc(var(--input-padding) + 8px) !important;
+	padding: var(--theme--form--field--input--padding) max(32px, calc(var(--theme--form--field--input--padding) + 16px));
 	background-color: var(--theme--background);
-	border: var(--border-width) solid var(--border-normal);
-	border-radius: var(--border-radius);
+	border: var(--theme--border-width) solid var(--theme--form--field--input--border-color);
+	border-radius: var(--theme--border-radius);
 
 	&:hover {
-		border-color: var(--border-normal-alt);
+		border-color: var(--theme--form--field--input--border-color-hover);
 	}
 
-	&:focus-within {
-		border-color: var(--theme--primary);
+	&:focus-within,
+	&:has(.ce-popover--opened) {
+		border-color: var(--theme--form--field--input--border-color-focus);
 	}
 }
 
 .monospace {
-	font-family: var(--theme--font-family-monospace);
+	font-family: var(--theme--fonts--monospace--font-family);
 }
 
 .serif {
-	font-family: var(--theme--font-family-serif);
+	font-family: var(--theme--fonts--serif--font-family);
 }
 
 .sans-serif {
-	font-family: var(--theme--font-family-sans-serif);
+	font-family: var(--theme--fonts--sans--font-family);
 }
 
 .uploader-drawer-content {
@@ -233,9 +249,9 @@ function sanitizeValue(value: any): EditorJS.OutputData | null {
 }
 
 .uploader-preview-image {
-	margin-bottom: var(--form-vertical-gap);
-	background-color: var(--background-normal);
-	border-radius: var(--border-radius);
+	margin-bottom: var(--theme--form--row-gap);
+	background-color: var(--theme--background-normal);
+	border-radius: var(--theme--border-radius);
 }
 
 .uploader-preview-image img {

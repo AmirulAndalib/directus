@@ -19,7 +19,7 @@ import {
 export function generateApiExtensionsSandboxEntrypoint(
 	type: ApiExtensionType | HybridExtensionType,
 	name: string,
-	endpointRouter: Router
+	endpointRouter: Router,
 ) {
 	const index = numberGenerator();
 
@@ -86,7 +86,7 @@ export function generateApiExtensionsSandboxEntrypoint(
 
 			const registerOperation = ${generateHostFunctionReference(index, ['id', 'handler'], { async: false })}
 
-			const operationConfig = extensionExport();
+			const operationConfig = extensionExport;
 
 			registerOperation(operationConfig.id, operationConfig.handler);
 		`;

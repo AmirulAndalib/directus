@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useFieldsStore } from '@/stores/fields';
 import { useRelationsStore } from '@/stores/relations';
-import { FieldFunction, Filter, Type } from '@directus/types';
+import { ClientFilterOperator, FieldFunction, Filter, Type } from '@directus/types';
 import {
 	getFilterOperatorsForType,
 	getOutputTypeForFunction,
@@ -120,7 +120,11 @@ function addNode(key: string) {
 
 		const filterOperators = getFilterOperatorsForType(type, { includeValidation: props.includeValidation });
 		const operator = field?.meta?.options?.choices && filterOperators.includes('eq') ? 'eq' : filterOperators[0];
-		const node = set({}, key, { ['_' + operator]: null });
+
+		const booleanOperators: ClientFilterOperator[] = ['empty', 'nempty', 'null', 'nnull'];
+		const initialValue = operator && booleanOperators.includes(operator) ? true : null;
+
+		const node = set({}, key, { ['_' + operator]: initialValue });
 		innerValue.value = innerValue.value.concat(node);
 	}
 }
@@ -129,7 +133,7 @@ function removeNode(ids: string[]) {
 	const id = ids.pop();
 
 	if (ids.length === 0) {
-		innerValue.value = innerValue.value.filter((node, index) => index !== Number(id));
+		innerValue.value = innerValue.value.filter((_node, index) => index !== Number(id));
 		return;
 	}
 
@@ -247,14 +251,15 @@ function addKeyAsNode() {
 	:deep(.group) {
 		margin-left: 18px;
 		padding-left: 10px;
-		border-left: var(--border-width) solid var(--border-subdued);
+		border-left: var(--theme--border-width) solid var(--theme--border-color-subdued);
 	}
 
 	.v-list {
 		min-width: auto;
 		margin: 0px 0px 10px;
 		padding: 20px 20px 12px;
-		border: var(--border-width) solid var(--border-subdued);
+		border: var(--theme--border-width) solid var(--theme--border-color-subdued);
+		background: var(--theme--form--field--input--background);
 
 		& > :deep(.group) {
 			margin-left: 0px;
@@ -266,20 +271,24 @@ function addKeyAsNode() {
 	.buttons {
 		padding: 0 10px;
 		font-weight: 600;
+
+		span {
+			white-space: nowrap;
+		}
 	}
 
 	&.empty {
 		.v-list {
 			display: flex;
 			align-items: center;
-			height: var(--input-height);
+			height: var(--theme--form--field--input--height);
 			padding-top: 0;
 			padding-bottom: 0;
 		}
 
 		.no-rules {
 			color: var(--theme--form--field--input--foreground-subdued);
-			font-family: var(--theme--font-family-monospace);
+			font-family: var(--theme--fonts--monospace--font-family);
 		}
 	}
 
@@ -292,6 +301,7 @@ function addKeyAsNode() {
 			margin: 0;
 			padding: 0;
 			border: 0;
+			background: transparent;
 		}
 
 		&.empty .v-list {
@@ -310,13 +320,13 @@ function addKeyAsNode() {
 			height: 30px;
 			padding: 0;
 			color: var(--theme--form--field--input--foreground-subdued);
-			background-color: var(--theme--background);
-			border: var(--border-width) solid var(--border-subdued);
+			background-color: var(--theme--form--field--input--background);
+			border: var(--theme--border-width) solid var(--theme--border-color-subdued);
 			border-radius: 100px;
 			transition: border-color var(--fast) var(--transition);
 			&:hover,
 			&.active {
-				border-color: var(--border-normal);
+				border-color: var(--theme--form--field--input--border-color);
 			}
 			&.active {
 				.expand_more {

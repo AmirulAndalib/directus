@@ -1,12 +1,21 @@
 <script setup lang="ts">
 import api from '@/api';
-import emitter, { Events } from '@/events';
+import type { File } from '@directus/types';
+import { emitter, Events } from '@/events';
+import { useFilesStore } from '@/stores/files.js';
 import { unexpectedError } from '@/utils/unexpected-error';
 import { uploadFile } from '@/utils/upload-file';
 import { uploadFiles } from '@/utils/upload-files';
 import DrawerFiles from '@/views/private/components/drawer-files.vue';
-import { computed, ref } from 'vue';
+import { sum } from 'lodash';
+import { computed, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import type { Upload } from 'tus-js-client';
+
+export type UploadController = {
+	start(): void;
+	abort(): void;
+};
 
 interface Props {
 	multiple?: boolean;
@@ -24,9 +33,14 @@ const props = withDefaults(defineProps<Props>(), {
 	fromUser: true,
 });
 
-const emit = defineEmits(['input']);
+const emit = defineEmits<{
+	input: [files: null | File | File[]];
+	start: [controller: UploadController];
+}>();
 
 const { t } = useI18n();
+
+let uploadController: Upload | null = null;
 
 const { uploading, progress, upload, onBrowseSelect, done, numberOfFiles } = useUpload();
 const { onDragEnter, onDragLeave, onDrop, dragging } = useDragging();
@@ -34,6 +48,10 @@ const { url, isValidURL, loading: urlLoading, importFromURL } = useURLImport();
 const { setSelection } = useSelection();
 const activeDialog = ref<'choose' | 'url' | null>(null);
 const input = ref<HTMLInputElement>();
+
+onUnmounted(() => {
+	uploadController?.abort();
+});
 
 function validFiles(files: FileList) {
 	if (files.length === 0) return false;
@@ -46,16 +64,20 @@ function validFiles(files: FileList) {
 }
 
 function useUpload() {
-	const uploading = ref(false);
-	const progress = ref(0);
-	const numberOfFiles = ref(0);
-	const done = ref(0);
+	const filesStore = useFilesStore();
+	const newUpload = filesStore.upload();
 
-	return { uploading, progress, upload, onBrowseSelect, numberOfFiles, done };
+	return {
+		uploading: newUpload.uploading,
+		progress: newUpload.progress,
+		upload,
+		onBrowseSelect,
+		numberOfFiles: newUpload.numberOfFiles,
+		done: newUpload.done,
+	};
 
 	async function upload(files: FileList) {
-		uploading.value = true;
-		progress.value = 0;
+		newUpload.start(files.length);
 
 		const preset = {
 			...props.preset,
@@ -67,37 +89,77 @@ function useUpload() {
 				throw new Error('An error has occurred while uploading the files.');
 			}
 
-			numberOfFiles.value = files.length;
-
 			if (props.multiple === true) {
+				const fileSizes = Array.from(files).map((file) => file.size);
+				const totalBytes = sum(fileSizes);
+				const fileControllers: (UploadController | null)[] = new Array(files.length).fill(null);
+
+				const controller = {
+					start() {
+						fileControllers.forEach((controller) => controller?.start());
+					},
+					abort() {
+						fileControllers.forEach((controller) => controller?.abort());
+					},
+				};
+
 				const uploadedFiles = await uploadFiles(Array.from(files), {
-					onProgressChange: (percentage) => {
-						progress.value = Math.round(percentage.reduce((acc, cur) => (acc += cur)) / files.length);
-						done.value = percentage.filter((p) => p === 100).length;
+					onProgressChange: (percentages) => {
+						newUpload.progress.value = Math.round(
+							(sum(fileSizes.map((total, i) => total * (percentages[i]! / 100))) / totalBytes) * 100,
+						);
+
+						const doneIndices = percentages
+							.map((p, i) => [p, i])
+							.filter(([p]) => p === 100)
+							.map(([, i]) => i!);
+
+						newUpload.done.value = doneIndices.length;
+
+						// Nullify controller for done uploads, to prevent resuming after pausing
+						for (const idx of doneIndices) {
+							if (fileControllers[idx]) fileControllers[idx] = null;
+						}
+					},
+					onChunkedUpload: (controllers) => {
+						controllers.forEach((controller, i) => (fileControllers[i] = controller));
+						uploadController = controller as Upload;
+
+						if (controllers.every((c) => c !== null)) {
+							// Only emit start once every upload started
+							emit('start', controller);
+						}
 					},
 					preset,
 				});
 
-				uploadedFiles && emit('input', uploadedFiles);
+				if (uploadedFiles)
+					emit(
+						'input',
+						uploadedFiles.filter((f): f is File => !!f),
+					);
 			} else {
-				const uploadedFile = await uploadFile(Array.from(files)[0], {
+				const uploadedFile = await uploadFile(Array.from(files)[0]!, {
 					onProgressChange: (percentage) => {
-						progress.value = percentage;
-						done.value = percentage === 100 ? 1 : 0;
+						newUpload.progress.value = percentage;
+						newUpload.done.value = percentage === 100 ? 1 : 0;
+					},
+					onChunkedUpload: (controller) => {
+						uploadController = controller;
+						emit('start', controller);
 					},
 					fileId: props.fileId,
 					preset,
 				});
 
-				uploadedFile && emit('input', uploadedFile);
+				if (uploadedFile) emit('input', uploadedFile);
+				uploadController = null;
 			}
-		} catch (err: any) {
-			unexpectedError(err);
+		} catch (error) {
+			unexpectedError(error);
 			emit('input', null);
 		} finally {
-			uploading.value = false;
-			done.value = 0;
-			numberOfFiles.value = 0;
+			newUpload.finish();
 		}
 	}
 
@@ -215,8 +277,8 @@ function useURLImport() {
 
 			activeDialog.value = null;
 			url.value = '';
-		} catch (err: any) {
-			unexpectedError(err);
+		} catch (error) {
+			unexpectedError(error);
 		} finally {
 			loading.value = false;
 		}
@@ -226,6 +288,12 @@ function useURLImport() {
 function openFileBrowser() {
 	input.value?.click();
 }
+
+function abort() {
+	uploadController?.abort();
+}
+
+defineExpose({ abort });
 </script>
 
 <template>
@@ -330,8 +398,8 @@ function openFileBrowser() {
 	padding: 32px;
 	color: var(--theme--foreground-subdued);
 	text-align: center;
-	border: 2px dashed var(--border-normal);
-	border-radius: var(--border-radius);
+	border: var(--theme--border-width) dashed var(--theme--form--field--input--border-color);
+	border-radius: var(--theme--border-radius);
 	transition: var(--fast) var(--transition);
 	transition-property: color, border-color, background-color;
 
@@ -340,7 +408,7 @@ function openFileBrowser() {
 	}
 
 	&:not(.uploading):hover {
-		border-color: var(--border-normal-alt);
+		border-color: var(--theme--form--field--input--border-color-hover);
 	}
 }
 
@@ -373,7 +441,7 @@ function openFileBrowser() {
 .dragging {
 	color: var(--theme--primary);
 	background-color: var(--theme--primary-background);
-	border-color: var(--theme--primary);
+	border-color: var(--theme--form--field--input--border-color-focus);
 
 	* {
 		pointer-events: none;
@@ -392,7 +460,7 @@ function openFileBrowser() {
 
 	color: var(--white);
 	background-color: var(--theme--primary);
-	border-color: var(--theme--primary);
+	border-color: var(--theme--form--field--input--border-color-focus);
 	border-style: solid;
 
 	.v-progress-linear {
